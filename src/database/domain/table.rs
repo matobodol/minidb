@@ -32,7 +32,7 @@ impl Table {
     }
 
     pub(crate) fn insert_row(&mut self, values: Vec<Value>) -> Result<(), DomainError> {
-        self.schema.validate_row(&values)?;
+        self.schema.validate_insert(&values)?;
 
         let row = Row::new(values);
         self.rows.push(row);
@@ -83,13 +83,13 @@ impl Table {
     }
 
     pub(crate) fn select_columns(&self, columns: &[&str]) -> Result<Vec<Vec<Value>>, DomainError> {
-        // 1. resolve index kolom (sekali di awal)
+        //  resolve index kolom (sekali di awal)
         let indices: Vec<usize> = columns
             .iter()
             .map(|name| self.index_column(name))
             .collect::<Result<_, _>>()?;
 
-        // 2. ambil value sesuai index
+        //  ambil value sesuai index
         let result = self
             .rows
             .iter()
@@ -109,16 +109,16 @@ impl Table {
         value: &Value,
         columns: &[&str],
     ) -> Result<Vec<Vec<Value>>, DomainError> {
-        // 1. resolve index where
+        //  resolve index where
         let where_index = self.index_column(column)?;
 
-        // 2. resolve index projection (sekali di awal)
+        //  resolve index projection (sekali di awal)
         let projection_indices: Vec<usize> = columns
             .iter()
             .map(|name| self.index_column(name))
             .collect::<Result<_, _>>()?;
 
-        // 3. filter + project
+        //  filter + project
         let result = self
             .rows
             .iter()
@@ -141,21 +141,11 @@ impl Table {
         target_column: &str,
         new_value: Value,
     ) -> Result<usize, DomainError> {
-        // 1. resolve index
         let where_index = self.index_column(where_column)?;
         let target_index = self.index_column(target_column)?;
 
-        // 2. validasi tipe data (sekali)
-        let column = &self.schema.columns()[target_index];
-        if !new_value.matches(column.data_type()) {
-            return Err(DomainError::TypeMismatch {
-                column_index: target_index,
-                expected: column.data_type().clone(),
-                found: new_value.clone(),
-            });
-        }
+        self.schema.validate_update(target_index, &new_value)?;
 
-        // 3. update rows
         let mut updated = 0;
 
         for row in self.rows.iter_mut() {
