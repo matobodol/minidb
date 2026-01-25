@@ -46,14 +46,11 @@ impl Schema {
         Self { columns }
     }
 
-    pub(crate) fn add_column(
-        &mut self,
-        columns: Vec<(String, DataType)>,
-    ) -> Result<(), DomainError> {
+    pub(crate) fn add_column(&mut self, columns: Vec<(&str, DataType)>) -> Result<(), DomainError> {
         let mut new_columns = Vec::with_capacity(columns.len());
 
         for (name, data_type) in columns {
-            if self.match_column(|column| &column.name == &name) {
+            if self.match_column(|column| &column.name == name) {
                 return Err(DomainError::DuplicateColumnName);
             }
 

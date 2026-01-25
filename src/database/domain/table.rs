@@ -14,10 +14,7 @@ impl Table {
         }
     }
 
-    pub(crate) fn add_column(
-        &mut self,
-        columns: Vec<(String, DataType)>,
-    ) -> Result<(), DomainError> {
+    pub(crate) fn add_column(&mut self, columns: Vec<(&str, DataType)>) -> Result<(), DomainError> {
         self.schema.add_column(columns)?;
 
         for row in &mut self.rows {

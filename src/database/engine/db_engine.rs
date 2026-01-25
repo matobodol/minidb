@@ -42,7 +42,7 @@ impl DbEngine {
     pub fn add_columns(
         &mut self,
         table: &str,
-        columns: Vec<(String, DataType)>,
+        columns: Vec<(&str, DataType)>,
     ) -> Result<(), EngineError> {
         let tbl = self.table_mut(table)?;
 

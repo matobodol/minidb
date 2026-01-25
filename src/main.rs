@@ -11,8 +11,8 @@ fn main() -> Result<(), EngineError> {
     engine.add_columns(
         "users",
         vec![
-            ("name".to_string(), DataType::Str),
-            ("age".to_string(), DataType::Int),
+            ("name", DataType::Str),
+            ("age", DataType::Int),
             (
                 "state".into(),
                 DataType::Enum {
@@ -38,21 +38,22 @@ fn main() -> Result<(), EngineError> {
             Value::Str("joni".into()),
             Value::Int(32),
             Value::Enum {
-                value: "Aktif".into(),
+                value: "Nonaktif".into(),
             },
         ],
     )?;
 
-    engine.delete_row("users", "name", &Value::Str("joni".into()))?;
+    // engine.delete_row("users", "name", &Value::Str("joni".into()))?;
     engine.add_columns("users", vec![("Alamat".into(), DataType::Str)])?;
 
     engine.update_where(
         "users",
         "name",
-        &Value::Str("jni".into()),
+        &Value::Str("jani".into()),
         "Alamat",
-        Value::Str("jl modify".into()),
+        Value::Str("is modifyed".into()),
     )?;
+
     println!("{:#?}", engine);
     Ok(())
 }
