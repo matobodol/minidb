@@ -8,7 +8,10 @@ pub mod schema;
 pub use schema::*;
 
 pub mod table;
-pub use table::*;
+pub(crate) use table::*;
 
 pub mod row;
 pub use row::*;
+
+pub mod column;
+pub use column::*;

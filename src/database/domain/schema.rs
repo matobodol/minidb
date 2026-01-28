@@ -1,47 +1,4 @@
-use crate::database::domain::{DataType, DomainError, Value};
-
-#[derive(Debug, Clone)]
-
-// _* definisi status rencana dipending
-struct _Flag {
-    // _unique: bool,
-    // _increment: bool,
-    _nullable: bool,
-}
-impl _Flag {
-    fn new() -> Self {
-        Self {
-            // _unique: false,
-            // _increment: false,
-            _nullable: true, //default sementara valid untuk  row baru,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Column {
-    name: String,
-    data_type: DataType,
-
-    // tunda optimasi dan validadi
-    _flag: _Flag,
-}
-
-impl Column {
-    pub(crate) fn new(name: impl Into<String>, data_type: DataType) -> Self {
-        Self {
-            name: name.into(),
-            data_type,
-            _flag: _Flag::new(),
-        }
-    }
-    pub(super) fn data_type(&self) -> &DataType {
-        &self.data_type
-    }
-    pub(crate) fn _is_nullable(&self) -> bool {
-        self._flag._nullable
-    }
-}
+use crate::database::domain::{Column, Condition, DataType, DomainError, ResolvedCondition, Value};
 
 #[derive(Default, Debug, Clone)]
 pub struct Schema {
@@ -60,10 +17,6 @@ impl Schema {
         self.columns.iter().any(|column| predicate(column))
     }
 
-    pub(crate) fn get_index(&self, name: &str) -> Option<usize> {
-        self.columns.iter().position(|column| &column.name == name)
-    }
-
     pub(super) fn len(&self) -> usize {
         self.columns.len()
     }
@@ -72,7 +25,7 @@ impl Schema {
         let mut new_columns = Vec::with_capacity(columns.len());
 
         for (name, data_type) in columns {
-            if self.match_column(|column| &column.name == name) {
+            if self.match_column(|column| column.name() == name) {
                 return Err(DomainError::DuplicateColumnName);
             }
 
@@ -82,27 +35,67 @@ impl Schema {
         self.columns.extend(new_columns);
         Ok(())
     }
+    pub(super) fn delete(&mut self, index: usize) -> Result<usize, DomainError> {
+        // validate uniqe in here. flag uniqe status pending.
+        // logic: operation delete column block if flag unique is true.
+
+        let before = self.len();
+        self.columns.remove(index);
+
+        let afected = before - self.len();
+        if afected == 0 {
+            return Err(DomainError::ColumnNotFound);
+        }
+
+        Ok(afected)
+    }
 }
 
 // VALIDATOR
 impl Schema {
-    pub(crate) fn validate_insert(&self, values: &[Value]) -> Result<(), DomainError> {
+    pub(crate) fn resolve_conditions(
+        &self,
+        conditions: &[Condition],
+    ) -> Result<Vec<ResolvedCondition>, DomainError> {
+        conditions
+            .iter()
+            .map(|c| {
+                Ok(ResolvedCondition {
+                    index: self.validate_resolve_column(&c.column)?,
+                    cmp: c.cmp.clone(),
+                    value: c.value.clone(),
+                })
+            })
+            .collect()
+    }
+
+    /// Validates column existence and returns its index
+    pub(super) fn validate_resolve_column(&self, name: &str) -> Result<usize, DomainError> {
+        self.columns
+            .iter()
+            .position(|column| column.name() == name)
+            .ok_or(DomainError::ColumnNotFound)
+    }
+    pub(crate) fn validate_row(&self, values: &[Value]) -> Result<(), DomainError> {
         self.validate_len(values.len())?;
 
         for (index, (value, column)) in values.iter().zip(self.columns().iter()).enumerate() {
-            match value {
-                Value::Null if !column._is_nullable() => return Err(DomainError::NotAllowedNull),
-                _ => {
-                    self.validate_type(index, column.data_type(), value)?;
-                }
-            }
+            self.validate_value(index, column, value)?;
         }
         Ok(())
     }
 
     pub(crate) fn validate_update(&self, index: usize, value: &Value) -> Result<(), DomainError> {
-        let column = &self.columns[index];
+        let column = self.columns.get(index).ok_or(DomainError::ColumnNotFound)?;
 
+        self.validate_value(index, column, value)
+    }
+    fn validate_value(
+        &self,
+        index: usize,
+        column: &Column,
+        value: &Value,
+    ) -> Result<(), DomainError> {
         match value {
             Value::Null if !column._is_nullable() => Err(DomainError::NotAllowedNull),
             _ => self.validate_type(index, column.data_type(), value),
@@ -126,7 +119,7 @@ impl Schema {
         data_type: &DataType,
         value: &Value,
     ) -> Result<(), DomainError> {
-        if !value.matches(data_type) {
+        if !data_type.matches(value) {
             return Err(DomainError::TypeMismatch {
                 column_index: target_index,
                 expected: data_type.clone(),

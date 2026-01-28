@@ -1,4 +1,4 @@
-use crate::database::domain::Value;
+use crate::database::domain::{Cmp, Value};
 
 #[derive(Debug, Clone)]
 pub struct Row {
@@ -16,8 +16,17 @@ impl Row {
         Self { values }
     }
 
-    pub fn get_value(&self) -> &Vec<Value> {
+    pub(super) fn delete_cell(&mut self, index: usize) {
+        self.values.remove(index);
+    }
+
+    pub fn get_values(&self) -> &Vec<Value> {
         &self.values
+    }
+
+    pub fn get(&self, index: usize) -> &Value {
+        // index wajib hasil resolve oleh schema
+        &self.values[index]
     }
 
     pub(crate) fn set_value(&mut self, index: usize, value: Value) {
@@ -25,18 +34,15 @@ impl Row {
             *slot = value;
         }
     }
+}
 
-    pub(crate) fn matched(&self, index: usize, value: &Value) -> bool {
+impl Row {
+    /// Mengecek kecocokan value pada index tertentu
+    pub(crate) fn value_is_match(&self, index: usize, cmp: &Cmp, value: &Value) -> bool {
         let Some(selected) = self.values.get(index) else {
             return false;
         };
-        match (selected, value) {
-            (Value::Null, Value::Null) => true,
-            (Value::Int(a), Value::Int(b)) => a == b,
-            (Value::Str(a), Value::Str(b)) => a == b,
-            (Value::Float(a), Value::Float(b)) => a == b,
-            (Value::Enum { value: a }, Value::Enum { value: b }) => a == b,
-            _ => false,
-        }
+
+        selected.compare(cmp, value)
     }
 }

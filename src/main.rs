@@ -1,20 +1,25 @@
 use minidb::database::{
-    domain::{DataType, Value},
-    engine::{DbEngine, EngineError},
+    domain::{Condition, DataType, Value},
+    engine::{EngineError, MiniDBEngine},
 };
 
 fn main() -> Result<(), EngineError> {
-    let mut engine = DbEngine::new();
+    // build database & table. FIX
+    let mut engine = MiniDBEngine::new();
     engine.create_table("users")?;
     engine.create_table("siswa")?;
+
+    // delete table
     engine.drop_table("siswa")?;
+
+    // add column. FIX
     engine.add_columns(
         "users",
         vec![
             ("name", DataType::Str),
             ("age", DataType::Int),
             (
-                "state".into(),
+                "state",
                 DataType::Enum {
                     variants: vec!["Aktif".into(), "Nonaktif".into()],
                 },
@@ -22,37 +27,59 @@ fn main() -> Result<(), EngineError> {
         ],
     )?;
 
+    // insert row
     engine.insert_row(
         "users",
-        vec![
-            Value::Str("jani".into()),
-            Value::Int(34),
-            Value::Enum {
-                value: "Aktif".into(),
-            },
+        &[
+            ("name", Value::Str("jani".into())),
+            ("age", Value::Int(32)),
+            (
+                "state",
+                Value::Enum {
+                    value: "Aktif".into(),
+                },
+            ),
         ],
     )?;
     engine.insert_row(
         "users",
-        vec![
-            Value::Str("joni".into()),
-            Value::Int(32),
-            Value::Enum {
-                value: "Nonaktif".into(),
-            },
+        &[
+            ("name", Value::Str("joni".into())),
+            ("age", Value::Int(30)),
+            (
+                "state",
+                Value::Enum {
+                    value: "Nonaktif".into(),
+                },
+            ),
+        ],
+    )?;
+    engine.insert_row(
+        "users",
+        &[
+            ("name", Value::Str("jono".into())),
+            ("age", Value::Int(29)),
+            (
+                "state",
+                Value::Enum {
+                    value: "Aktif".into(),
+                },
+            ),
         ],
     )?;
 
-    // engine.delete_row("users", "name", &Value::Str("joni".into()))?;
-    engine.add_columns("users", vec![("Alamat".into(), DataType::Str)])?;
+    // delete column
+    engine.add_columns("users", vec![("Alamat", DataType::Str)])?;
+    engine.delete_column("users", "Alamat")?;
 
-    engine.update_where(
+    engine.update_row_where(
         "users",
-        "name",
-        &Value::Str("jani".into()),
-        "Alamat",
-        Value::Str("is modifyed".into()),
+        &[Condition::eq("name", Value::Str("joni".into()))],
+        ("age".into(), Value::Int(20)),
     )?;
+
+    // delete row
+    engine.delete_row_where("users", &[Condition::eq("name", Value::Str("joni".into()))])?;
 
     println!("{:#?}", engine);
     Ok(())
