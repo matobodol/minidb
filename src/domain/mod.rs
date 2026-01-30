@@ -15,3 +15,9 @@ pub use row::*;
 
 pub mod column;
 pub use column::*;
+
+pub mod domain_error;
+pub use domain_error::*;
+
+pub mod query_domain;
+pub use query_domain::*;
