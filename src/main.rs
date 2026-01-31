@@ -1,51 +1,38 @@
-use minidb::{
-    application::AppManager,
-    domain::{Constraint, DataType, Value},
-};
+use minidb::{application::AppManager, cli::run_repl, storage::FileDatabaseStorage};
 
 fn main() {
-    let mut app_manager = AppManager::new();
-    app_manager.create("app_db").unwrap();
-    app_manager.db_use("app_db");
+    let storage = FileDatabaseStorage::new("./data");
+    let mut app = AppManager::new(storage);
+    println!("{:#?}", app);
 
-    let db = app_manager.db_mut().unwrap();
-    db.create_table("users").unwrap();
-    db.add_columns(
-        "users",
-        vec![
-            (
-                "name",
-                DataType::Str,
-                &[Constraint::Unique, Constraint::NotNull],
-            ),
-            (
-                "age",
-                DataType::Int,
-                &[Constraint::NotNull, Constraint::Default(Value::Int(100))],
-            ),
-        ],
-    )
-    .unwrap();
-
-    db.insert_row(
-        "users",
-        &[("age", Value::Int(32)), ("name", Value::Str("joni".into()))],
-    )
-    .unwrap();
-
-    db.insert_row(
-        "users",
-        &[("age", Value::Int(20)), ("name", Value::Str("jono".into()))],
-    )
-    .unwrap();
-
-    db.insert_row(
-        "users",
-        &[("age", Value::Int(20)), ("name", Value::Str("jani".into()))],
-    )
-    .unwrap();
-
-    // db.delete_column("users", "age").unwrap();
-
-    println!("{:#?}", &app_manager);
+    run_repl(&mut app);
 }
+
+// exit ✅️
+// contoh: exit
+// contoh: quit
+
+// create database✅️
+// contoh: create database mydb
+
+// use database✅️
+// contoh: use database mydb
+
+// show databases✅️
+// contoh: show databases
+
+// show current database✅️
+// contoh: show current
+
+// drop database✅️
+// contoh: drop database mydb
+
+// CREATE TABLE users;✅️
+// DROP TABLE users;✅️
+// SHOW TABLES;✅️
+// DESCRIBE users; -- alias DESC users;✅️
+
+// ALTER TABLE users ADD COLUMN name str primary key not null, age int✅️
+// ALTER TABLE users DROP COLUMN name;✅️
+//
+// insert into users (name,age) values ("jono", 30)✅️

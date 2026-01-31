@@ -14,8 +14,10 @@ pub enum DomainError {
     },
 
     // CONSTRAINT
+    ConstrainUniqeAlreadyExist,
+    NotAllowedDeleteColumnUniq(String),
     NotAllowedNull,
-    BlockByConstraint(String),
+    NotUniqValue(String),
 
     // ROW
     ValueNotFound {

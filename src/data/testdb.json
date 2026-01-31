@@ -1,0 +1,42 @@
+{
+  "tables": {
+    "users": {
+      "schema": {
+        "columns": [
+          {
+            "name": "id",
+            "data_type": "Int",
+            "constraint": []
+          },
+          {
+            "name": "name",
+            "data_type": "Str",
+            "constraint": []
+          }
+        ]
+      },
+      "rows": [
+        {
+          "values": [
+            {
+              "Int": 1
+            },
+            {
+              "Str": "jono"
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Int": 1
+            },
+            {
+              "Str": "jono"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

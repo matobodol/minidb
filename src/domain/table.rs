@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{
-    Condition, Constraint, DataType, DomainError, ResolvedCondition, Row, Schema, Value,
+    Column, Condition, Constraint, DataType, DomainError, ResolvedCondition, Row, Schema, Value,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,6 +15,21 @@ impl Table {
             schema: Schema::new(),
             rows: Vec::new(),
         }
+    }
+
+    fn remove_rows_by_indices(&mut self, mut indices: Vec<usize>) -> usize {
+        if indices.is_empty() {
+            return 0;
+        }
+
+        // penting: hapus dari belakang
+        indices.sort_unstable_by(|a, b| b.cmp(a));
+
+        for &i in &indices {
+            self.rows.remove(i);
+        }
+
+        indices.len()
     }
 
     // filter: bekerja bersama (row.value_is_match())
@@ -43,6 +58,15 @@ impl Table {
         &mut self,
         columns: Vec<(&str, DataType, &[Constraint])>,
     ) -> Result<(), DomainError> {
+        let column = self.columns();
+
+        if column
+            .iter()
+            .any(|c| c.has_constraint(|c| matches!(c, Constraint::Unique)))
+        {
+            return Err(DomainError::ConstrainUniqeAlreadyExist);
+        }
+
         self.schema.add_column(columns)?;
 
         for row in &mut self.rows {
@@ -53,15 +77,36 @@ impl Table {
         Ok(())
     }
 
-    pub(crate) fn delete_column(&mut self, column: &str) -> Result<usize, DomainError> {
-        let index = self.schema.resolve_column(column)?;
+    pub(crate) fn delete_column(&mut self, columns: Vec<String>) -> Result<usize, DomainError> {
+        let mut indexes = Vec::new();
 
-        let afected = self.schema.remove_at(index)?;
-        self.rows
-            .iter_mut()
-            .for_each(|values| values.remove_at(index));
+        // VALIDASI + RESOLVE
+        for name in &columns {
+            let index = self.schema.resolve_column(name)?;
+            let column = &self.schema.columns()[index];
 
-        Ok(afected)
+            if column.has_constraint(|c| matches!(c, Constraint::Unique)) {
+                return Err(DomainError::NotAllowedDeleteColumnUniq(name.to_string()));
+            }
+
+            indexes.push(index);
+        }
+
+        indexes.sort();
+        indexes.dedup();
+        indexes.reverse();
+
+        // MUTASI
+        for &index in &indexes {
+            self.schema.remove_at(index);
+            self.rows.iter_mut().for_each(|row| row.remove_at(index));
+        }
+
+        Ok(indexes.len())
+    }
+
+    pub(super) fn columns(&self) -> &[Column] {
+        self.schema.columns()
     }
 }
 
@@ -86,7 +131,7 @@ impl Table {
                 let duplicated = self.rows.iter().any(|row| row.values()[index] == *value);
 
                 if duplicated {
-                    return Err(DomainError::BlockByConstraint(
+                    return Err(DomainError::NotUniqValue(
                         "Value inserted not unique.".to_string(),
                     ));
                 }
@@ -133,67 +178,68 @@ impl Table {
         self.rows.push(Row::new(row_values));
         Ok(())
     }
-
-    pub(crate) fn update_row_where(
+    pub(crate) fn update_where(
         &mut self,
         conditions: &[Condition],
-        to_replace: (&str, Value),
+        assignments: &[(String, Value)],
     ) -> Result<usize, DomainError> {
-        let (column, value) = to_replace;
-        let index = self.schema.resolve_column(column)?;
-
-        self.schema.validate_update(index, &value)?;
-
-        let resolved = self.schema.resolve_conditions(conditions)?;
-        let indices = self.find_rows_by_resolved_conditions(&resolved);
-
-        if indices.is_empty() {
-            return Err(DomainError::InvalidCondition {
-                reason: "No resolved conditions provided".into(),
-            });
+        if assignments.is_empty() {
+            return Ok(0);
         }
 
-        // ceq unique
-        if self.schema.columns()[index].has_constraint(|c| matches!(c, Constraint::Unique)) {
-            for (i, row) in self.rows.iter().enumerate() {
-                // skip row yang memang akan diupdate
-                if indices.contains(&i) {
-                    continue;
-                }
+        // 1. resolve kondisi
+        let resolved = self.schema.resolve_conditions(conditions)?;
+        let target_rows = self.find_rows_by_resolved_conditions(&resolved);
 
-                if row.values()[index] == value {
-                    return Err(DomainError::BlockByConstraint(
-                        "Value inserted not unique.".to_string(),
-                    ));
+        // 2. tidak ada row cocok → valid, bukan error
+        if target_rows.is_empty() {
+            return Ok(0);
+        }
+
+        // 3. resolve kolom & validasi value
+        let mut resolved_updates = Vec::new();
+        for (col, value) in assignments {
+            let index = self.schema.resolve_column(col)?;
+            self.schema.validate_update(index, value)?;
+            resolved_updates.push((index, value.clone()));
+        }
+
+        // 4. cek UNIQUE constraint
+        for (col_index, new_value) in &resolved_updates {
+            let column = &self.schema.columns()[*col_index];
+
+            if column.has_constraint(|c| matches!(c, Constraint::Unique)) {
+                for (row_idx, row) in self.rows.iter().enumerate() {
+                    // skip row yang memang akan diupdate
+                    if target_rows.contains(&row_idx) {
+                        continue;
+                    }
+
+                    if row.values()[*col_index] == *new_value {
+                        return Err(DomainError::NotUniqValue(
+                            "Value inserted not unique.".to_string(),
+                        ));
+                    }
                 }
             }
         }
 
-        for i in indices.iter() {
-            self.rows[*i].replace(index, value.clone());
+        // 5. apply update
+        for row_idx in &target_rows {
+            let row = &mut self.rows[*row_idx];
+            for (col_index, value) in &resolved_updates {
+                row.replace(*col_index, value.clone());
+            }
         }
 
-        Ok(indices.len())
+        Ok(target_rows.len())
     }
 
-    pub(crate) fn delete_row_where(
-        &mut self,
-        conditions: &[Condition],
-    ) -> Result<usize, DomainError> {
+    pub(crate) fn delete_row(&mut self, conditions: &[Condition]) -> Result<usize, DomainError> {
         let resolved = self.schema.resolve_conditions(conditions)?;
         let indices = self.find_rows_by_resolved_conditions(&resolved);
 
-        if indices.is_empty() {
-            return Err(DomainError::InvalidCondition {
-                reason: "No resolved conditions provided".into(),
-            });
-        }
-
-        for i in indices.iter() {
-            self.rows.remove(*i);
-        }
-
-        Ok(indices.len())
+        Ok(self.remove_rows_by_indices(indices))
     }
 }
 

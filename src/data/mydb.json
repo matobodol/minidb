@@ -1,0 +1,24 @@
+{
+  "tables": {
+    "tes": {
+      "schema": {
+        "columns": [
+          {
+            "name": "name",
+            "data_type": "Str",
+            "constraint": [
+              "NotNull",
+              "Unique"
+            ]
+          },
+          {
+            "name": "age",
+            "data_type": "Int",
+            "constraint": []
+          }
+        ]
+      },
+      "rows": []
+    }
+  }
+}

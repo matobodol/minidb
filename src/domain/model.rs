@@ -49,7 +49,7 @@ pub enum Value {
 impl Value {
     pub fn compare(&self, op: &Cmp, to_cmp: &Value) -> bool {
         match (op, self, to_cmp) {
-            (Cmp::Eq, Value::Absen, _) => false, //menghasilkan true masih dalam pertimbangan
+            (Cmp::Eq, Value::Absen, _) => true, //menghasilkan true masih dalam pertimbangan
             (Cmp::Eq, Value::Int(a), Value::Int(b)) => a == b,
             (Cmp::Eq, Value::Str(a), Value::Str(b)) => a == b,
             (Cmp::Eq, Value::Float(a), Value::Float(b)) => a == b,

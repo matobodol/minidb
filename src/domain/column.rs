@@ -50,3 +50,131 @@ impl Column {
         self.constraint.iter().find_map(extractor)
     }
 }
+
+// ============================================================
+// ATURAN RESMI KOMBINASI CONSTRAINT KOLOM
+// ============================================================
+//
+// MINDSET DASAR
+// ------------------------------------------------------------
+// - Sistem ini TIDAK PERNAH memiliki Value::Null atau Value::Absen
+// - Null = ketiadaan nilai (tidak ada entry), BUKAN nilai
+// - Value selalu konkret dan valid secara tipe
+// - Schema adalah sumber kebenaran
+// - Constraint bekerja pada MAKNA data, bukan struktur penyimpanan
+//
+// ------------------------------------------------------------
+// DEFINISI ERROR
+// ------------------------------------------------------------
+// - Schema Error : kombinasi constraint tidak masuk akal,
+//                  harus gagal saat definisi schema
+// - Data Error   : schema valid, tapi data melanggar constraint
+//
+// ------------------------------------------------------------
+// DAFTAR CONSTRAINT
+// ------------------------------------------------------------
+// - Nullable
+// - NotNull
+// - Unique
+// - Increment
+// - Default(Value)
+//
+// ============================================================
+// ATURAN KOMBINASI (SCHEMA-TIME)
+// ============================================================
+//
+// 1. Nullable ↔ NotNull
+// ------------------------------------------------------------
+// - Nullable + NotNull        -> ❌ Schema Error
+// - Nullable saja             -> ✅ Valid
+// - NotNull saja              -> ✅ Valid
+// - Tidak ada keduanya        -> ⚠️ Dianggap Nullable (disarankan eksplisit)
+//
+// ------------------------------------------------------------
+// 2. Default(Value)
+// ------------------------------------------------------------
+// - Default + Nullable        -> ✅ Valid
+// - Default + NotNull         -> ✅ Valid
+// - Default(null) + NotNull  -> ❌ Schema Error
+//
+// Catatan:
+// - Default HARUS nilai konkret jika NotNull
+// - Default tidak boleh merepresentasikan ketiadaan
+//
+// ------------------------------------------------------------
+// 3. Unique
+// ------------------------------------------------------------
+// - Unique saja               -> ⚠️ Valid (null / ketiadaan diabaikan)
+// - Unique + NotNull          -> ✅ Valid (kombinasi kuat)
+// - Unique + null sebagai nilai
+//                              -> ❌ Schema Error
+//
+// Catatan:
+// - Unique hanya membandingkan nilai yang HADIR
+// - Ketiadaan nilai TIDAK ikut perbandingan
+//
+// ------------------------------------------------------------
+// 4. Default ↔ Unique
+// ------------------------------------------------------------
+// - Default(v) + Unique       -> ⚠️ Valid tapi berbahaya
+//
+// Catatan:
+// - Insert berulang tanpa nilai akan menghasilkan duplikat default
+// - Disarankan hanya aman jika digabung dengan Increment
+//
+// ------------------------------------------------------------
+// 5. Increment
+// ------------------------------------------------------------
+// - Increment + Nullable      -> ❌ Schema Error
+// - Increment + Default       -> ❌ Schema Error
+// - Increment + NotNull       -> ✅ Valid
+// - Increment + Unique        -> ✅ Valid
+// - Increment saja            -> ⚠️ Implicit NotNull + Unique
+//
+// Rekomendasi desain:
+// - Increment secara implisit mengaktifkan:
+//   - NotNull
+//   - Unique
+//
+// ------------------------------------------------------------
+// 6. Kombinasi Ideal (Golden Path)
+// ------------------------------------------------------------
+// - Increment + Unique + NotNull
+//   -> ✅ Kombinasi paling aman dan direkomendasikan
+//
+// ============================================================
+// ATURAN DATA-TIME (INSERT / UPDATE)
+// ============================================================
+//
+// - Jika nilai TIDAK HADIR:
+//   - Nullable   -> ✅ OK
+//   - NotNull    -> ❌ Data Error
+//
+// - Jika nilai HADIR:
+//   - Nullable   -> ✅ OK
+//   - NotNull    -> ✅ OK
+//
+// - Unique:
+//   - Hanya nilai HADIR yang dibandingkan
+//   - Ketiadaan nilai selalu diabaikan
+//
+// ============================================================
+// KOMBINASI YANG WAJIB DITOLAK
+// ============================================================
+//
+// ❌ Schema Error:
+// - Nullable + NotNull
+// - Increment + Nullable
+// - Increment + Default
+// - Default(null) + NotNull
+// - Unique dengan null dianggap nilai
+//
+// ============================================================
+// FILOSOFI AKHIR
+// ============================================================
+// - Null adalah ketiadaan, bukan nilai
+// - Constraint harus bebas paradoks
+// - Increment adalah constraint dominan
+// - Unique tidak memikirkan ketiadaan
+// - Jika Value ada -> ia selalu valid
+// ============================================================

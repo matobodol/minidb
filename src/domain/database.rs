@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{Condition, Constraint, DataType, DomainError, Table, Value};
+use crate::domain::{Column, Condition, Constraint, DataType, DomainError, Table, Value};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Database {
@@ -36,6 +36,16 @@ impl Database {
             .ok_or(DomainError::TableNotFound(name.to_string()))
     }
 
+    pub fn list_tables(&self) -> Vec<String> {
+        self.tables.keys().cloned().collect()
+    }
+
+    pub fn describe_table(&self, name: &str) -> Result<Vec<Column>, DomainError> {
+        let table = self.table(name)?;
+
+        Ok(table.columns().to_vec())
+    }
+
     fn table(&self, name: &str) -> Result<&Table, DomainError> {
         self.tables
             .get(name)
@@ -59,7 +69,11 @@ impl Database {
         let tbl = self.table_mut(table)?;
         tbl.add_column(columns)
     }
-    pub fn delete_column(&mut self, table: &str, column: &str) -> Result<usize, DomainError> {
+    pub fn delete_column(
+        &mut self,
+        table: &str,
+        column: Vec<String>,
+    ) -> Result<usize, DomainError> {
         let tbl = self.table_mut(table)?;
         tbl.delete_column(column)
     }
@@ -73,25 +87,23 @@ impl Database {
         tbl.insert_row(values)
     }
 
-    pub fn update_row_where(
+    pub(crate) fn update_where(
         &mut self,
         table: &str,
         conditions: &[Condition],
-        target: (&str, Value),
+        assignments: &[(String, Value)],
     ) -> Result<usize, DomainError> {
         let tbl = self.table_mut(table)?;
-
-        tbl.update_row_where(conditions, target)
+        tbl.update_where(conditions, assignments)
     }
 
-    pub fn delete_row_where(
+    pub(crate) fn delete_where(
         &mut self,
         table: &str,
         conditions: &[Condition],
     ) -> Result<usize, DomainError> {
         let tbl = self.table_mut(table)?;
-
-        tbl.delete_row_where(conditions)
+        tbl.delete_row(conditions)
     }
 }
 

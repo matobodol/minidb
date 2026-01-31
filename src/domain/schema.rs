@@ -21,12 +21,12 @@ impl Schema {
         &self.columns
     }
 
-    // pub(crate) fn match_column<F>(&self, predicate: F) -> bool
-    // where
-    //     F: Fn(&Column) -> bool,
-    // {
-    //     self.columns.iter().any(|column| predicate(column))
-    // }
+    pub(crate) fn match_column<F>(&self, predicate: F) -> bool
+    where
+        F: Fn(&Column) -> bool,
+    {
+        self.columns.iter().any(|column| predicate(column))
+    }
 
     pub(crate) fn add_column(
         &mut self,
@@ -53,24 +53,8 @@ impl Schema {
         Ok(())
     }
 
-    pub(super) fn remove_at(&mut self, index: usize) -> Result<usize, DomainError> {
-        let before = self.columns.len();
-
-        let is_unique = self.columns()[index].has_constraint(|c| matches!(c, Constraint::Unique));
-
-        if is_unique {
-            return Err(DomainError::BlockByConstraint(
-                "Operation Was Cancelled By Constraint Unique.".to_owned(),
-            ));
-        }
+    pub(super) fn remove_at(&mut self, index: usize) {
         self.columns.remove(index);
-
-        let afected = before - self.columns.len();
-        if afected == 0 {
-            return Err(DomainError::ColumnIndexNotFound(index));
-        }
-
-        Ok(afected)
     }
 }
 
