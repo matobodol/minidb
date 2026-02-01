@@ -8,46 +8,56 @@ fn tokenize(input: &str) -> Result<Vec<String>, AppError> {
     let mut tokens = Vec::new();
     let mut buf = String::new();
     let mut paren_depth: i32 = 0;
+    let mut in_string = false;
 
-    for ch in input.chars() {
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
         match ch {
-            '(' => {
+            '"' => {
+                buf.push(ch);
+                in_string = !in_string;
+            }
+
+            '(' if !in_string => {
                 paren_depth += 1;
                 buf.push(ch);
             }
-            ')' => {
+
+            ')' if !in_string => {
                 paren_depth -= 1;
                 if paren_depth < 0 {
                     return Err(AppError::InvalidCommand("unmatched ')'".into()));
                 }
                 buf.push(ch);
             }
-            ' ' if paren_depth == 0 => {
+
+            ' ' if !in_string && paren_depth == 0 => {
                 if !buf.is_empty() {
                     tokens.push(buf.clone());
                     buf.clear();
                 }
             }
-            ',' if paren_depth == 0 => {
+
+            ',' if !in_string && paren_depth == 0 => {
                 if !buf.is_empty() {
                     tokens.push(buf.clone());
                     buf.clear();
                 }
             }
+
             _ => buf.push(ch),
         }
     }
 
-    if paren_depth != 0 {
-        return Err(AppError::InvalidCommand("unmatched '('".into()));
+    if in_string {
+        return Err(AppError::InvalidCommand(
+            "unterminated string literal".into(),
+        ));
     }
 
     if !buf.is_empty() {
         tokens.push(buf);
-    }
-
-    if tokens.is_empty() {
-        return Err(AppError::InvalidCommand("empty command".into()));
     }
 
     Ok(tokens)
