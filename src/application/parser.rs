@@ -1,6 +1,5 @@
 use crate::{
-    application::AppError,
-    cli::Command,
+    application::{AppError, Command},
     domain::{Condition, Constraint, DataType, Value},
 };
 

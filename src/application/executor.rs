@@ -1,6 +1,5 @@
 use crate::{
-    application::{AppError, AppManager},
-    cli::Command,
+    application::{AppError, AppManager, Command},
     domain::{Column, Constraint, DataType, Value},
     storage::DatabaseStorage,
 };

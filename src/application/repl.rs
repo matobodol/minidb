@@ -1,7 +1,6 @@
 use std::io::{self, Write};
 
-use crate::application::{AppError, AppManager};
-use crate::cli::{CommandOutput, execute_command, parse_command};
+use crate::application::{AppError, AppManager, CommandOutput, execute_command, parse_command};
 use crate::storage::DatabaseStorage;
 
 pub fn run_repl<S: DatabaseStorage>(app: &mut AppManager<S>) {

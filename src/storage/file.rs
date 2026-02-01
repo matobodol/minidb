@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use crate::{
     domain::Database,
@@ -57,7 +53,6 @@ impl DatabaseStorage for FileDatabaseStorage {
     }
 
     fn drop(&mut self, name: &str) -> Result<(), StorageError> {
-        // jika masih loaded → unload dulu (sekalian save)
         if self.loaded.contains_key(name) {
             self.unload(name)?;
         }

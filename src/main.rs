@@ -1,4 +1,7 @@
-use minidb::{application::AppManager, cli::run_repl, storage::FileDatabaseStorage};
+use minidb::{
+    application::{AppManager, run_repl},
+    storage::FileDatabaseStorage,
+};
 
 fn main() {
     let storage = FileDatabaseStorage::new("./data");

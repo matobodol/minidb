@@ -21,7 +21,7 @@ impl Schema {
         &self.columns
     }
 
-    pub(crate) fn match_column<F>(&self, predicate: F) -> bool
+    pub(crate) fn _match_column<F>(&self, predicate: F) -> bool
     where
         F: Fn(&Column) -> bool,
     {
