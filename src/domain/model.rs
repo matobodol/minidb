@@ -62,6 +62,18 @@ impl Value {
     }
 }
 
+impl Value {
+    pub(crate) fn to_str(&self) -> String {
+        match self {
+            Value::Int(v) => v.to_string(),
+            Value::Str(v) => v.clone(),
+            Value::Float(v) => v.to_string(),
+            Value::Enum { value } => value.clone(),
+            Value::Absen(_) => "-".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Cmp {
     Eq,

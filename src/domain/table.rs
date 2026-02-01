@@ -249,27 +249,30 @@ impl Table {
 
 // Lookup API for application layer (read-only)
 impl Table {
-    pub(crate) fn select_all(&self) -> Vec<Vec<Value>> {
-        self.rows.iter().map(|row| row.values().clone()).collect()
+    pub(crate) fn select_all(&self) -> Vec<Vec<String>> {
+        self.rows
+            .iter()
+            .map(|row| row.values().iter().map(|v| v.to_str()).collect())
+            .collect()
     }
 
     pub(crate) fn select_where(
         &self,
         condition: Condition,
-    ) -> Result<Vec<Vec<Value>>, DomainError> {
+    ) -> Result<Vec<Vec<String>>, DomainError> {
         let cond = self.schema.resolve_conditions(&[condition])?;
 
         let result = self
             .rows
             .iter()
             .filter(|row| cond.iter().any(|c| row.value_is_match(c)))
-            .map(|row| row.values().clone())
+            .map(|row| row.values().iter().map(|v| v.to_str()).collect())
             .collect();
 
         Ok(result)
     }
 
-    pub(crate) fn select_columns(&self, columns: &[&str]) -> Result<Vec<Vec<Value>>, DomainError> {
+    pub(crate) fn select_columns(&self, columns: &[&str]) -> Result<Vec<Vec<String>>, DomainError> {
         //  resolve index kolom (sekali di awal)
         let indices: Vec<usize> = columns
             .iter()
@@ -283,8 +286,8 @@ impl Table {
             .map(|row| {
                 indices
                     .iter()
-                    .map(|&i| row.values()[i].clone())
-                    .collect::<Vec<Value>>()
+                    .map(|&i| row.values()[i].to_str())
+                    .collect::<Vec<String>>()
             })
             .collect();
 
@@ -294,7 +297,7 @@ impl Table {
         &self,
         condition: Condition,
         columns: &[&str],
-    ) -> Result<Vec<Vec<Value>>, DomainError> {
+    ) -> Result<Vec<Vec<String>>, DomainError> {
         //  resolve index where
 
         //  resolve index projection (sekali di awal)
@@ -313,8 +316,8 @@ impl Table {
             .map(|row| {
                 projection_indices
                     .iter()
-                    .map(|&i| row.values()[i].clone())
-                    .collect::<Vec<Value>>()
+                    .map(|&i| row.values()[i].to_str())
+                    .collect::<Vec<String>>()
             })
             .collect();
 

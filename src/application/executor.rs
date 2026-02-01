@@ -8,7 +8,7 @@ use crate::{
 pub enum CommandOutput {
     Ok,
     Affected(usize),
-    Rows(Vec<Vec<Value>>),
+    Rows(Vec<Vec<String>>),
     Columns(Vec<Column>),
     Message(String),
     Exit,

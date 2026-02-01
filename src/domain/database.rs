@@ -109,7 +109,7 @@ impl Database {
 
 // Lookup API for application layer (read-only)
 impl Database {
-    pub fn select_all(&self, table: &str) -> Result<Vec<Vec<Value>>, DomainError> {
+    pub fn select_all(&self, table: &str) -> Result<Vec<Vec<String>>, DomainError> {
         let tbl = self.table(table)?;
 
         Ok(tbl.select_all())
@@ -119,7 +119,7 @@ impl Database {
         &self,
         table: &str,
         condition: Condition,
-    ) -> Result<Vec<Vec<Value>>, DomainError> {
+    ) -> Result<Vec<Vec<String>>, DomainError> {
         let tbl = self.table(table)?;
 
         tbl.select_where(condition)
@@ -129,7 +129,7 @@ impl Database {
         &self,
         table: &str,
         columns: &[&str],
-    ) -> Result<Vec<Vec<Value>>, DomainError> {
+    ) -> Result<Vec<Vec<String>>, DomainError> {
         let tbl = self.table(table)?;
 
         tbl.select_columns(columns)
@@ -140,7 +140,7 @@ impl Database {
         table: &str,
         condition: Condition,
         columns: &[&str],
-    ) -> Result<Vec<Vec<Value>>, DomainError> {
+    ) -> Result<Vec<Vec<String>>, DomainError> {
         let tbl = self.table(table)?;
 
         tbl.select_where_columns(condition, columns)

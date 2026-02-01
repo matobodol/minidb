@@ -15,6 +15,11 @@
             "name": "age",
             "data_type": "Int",
             "constraint": []
+          },
+          {
+            "name": "alamat",
+            "data_type": "Str",
+            "constraint": []
           }
         ]
       },
@@ -26,6 +31,9 @@
             },
             {
               "Int": 31
+            },
+            {
+              "Absen": false
             }
           ]
         },
@@ -36,6 +44,22 @@
             },
             {
               "Int": 22
+            },
+            {
+              "Absen": false
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Str": "jejen"
+            },
+            {
+              "Int": 23
+            },
+            {
+              "Str": "jl anggrek"
             }
           ]
         }
