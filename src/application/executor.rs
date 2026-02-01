@@ -47,22 +47,24 @@ pub fn execute_command<S: DatabaseStorage>(
 
         // ===== TABLE =====
         Command::CreateTable { name } => {
-            app.create_table(&name)?;
+            app.with_db_mut(|db| db.create_table(&name))?;
+            // app.create_table(&name)?;
             Ok(CommandOutput::Ok)
         }
 
         Command::DropTable { name } => {
-            let affected = app.drop_table(&name)?;
+            // let affected = app.drop_table(&name)?;
+            let affected = app.with_db_mut(|db| db.drop_table(&name))?;
             Ok(CommandOutput::Affected(affected))
         }
 
         Command::ShowTables => {
-            let tables = app.show_tables()?;
+            let tables = app.with_db(|db| Ok(db.list_tables()))?;
             Ok(CommandOutput::Message(tables.join("\n")))
         }
 
         Command::DescribeTable { table } => {
-            let columns = app.describe_table(&table)?;
+            let columns = app.with_db(|db| db.describe_table(&table))?;
 
             Ok(CommandOutput::Columns(columns))
         }
@@ -74,11 +76,11 @@ pub fn execute_command<S: DatabaseStorage>(
                 .map(|(name, ty, cons)| (name.as_str(), ty.clone(), cons.as_slice()))
                 .collect();
 
-            app.add_columns(&table, cols)?;
+            app.with_db_mut(|db| db.add_columns(&table, cols))?;
             Ok(CommandOutput::Ok)
         }
         Command::AlterTableDropColumn { table, columns } => {
-            let affected = app.delete_columns(&table, columns)?;
+            let affected = app.with_db_mut(|db| db.delete_column(&table, columns))?;
             Ok(CommandOutput::Affected(affected))
         }
 
@@ -89,7 +91,7 @@ pub fn execute_command<S: DatabaseStorage>(
                 .map(|(k, v)| (k.as_str(), v.clone()))
                 .collect();
 
-            app.insert_row(&table, &vals)?;
+            app.with_db_mut(|db| db.insert_row(&table, &vals))?;
             Ok(CommandOutput::Ok)
         }
 
@@ -98,29 +100,31 @@ pub fn execute_command<S: DatabaseStorage>(
             assignments,
             conditions,
         } => {
-            let count = app.update_where(&table, &conditions, &assignments)?;
+            let count = app.with_db_mut(|db| db.update_where(&table, &conditions, &assignments))?;
+
             Ok(CommandOutput::Affected(count))
         }
 
         Command::DeleteWhere { table, conditions } => {
-            let count = app.delete_where(&table, &conditions)?;
+            let count = app.with_db_mut(|db| db.delete_where(&table, &conditions))?;
             Ok(CommandOutput::Affected(count))
         }
 
         // ===== SELECT =====
         Command::SelectAll { table } => {
-            let rows = app.select_all(&table)?;
+            let rows = app.with_db(|db| db.select_all(&table))?;
+
             Ok(CommandOutput::Rows(rows))
         }
 
         Command::SelectWhere { table, condition } => {
-            let rows = app.select_where(&table, condition)?;
+            let rows = app.with_db(|db| db.select_where(&table, condition))?;
             Ok(CommandOutput::Rows(rows))
         }
 
         Command::SelectColumns { table, columns } => {
             let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            let rows = app.select_columns(&table, &cols)?;
+            let rows = app.with_db(|db| db.select_columns(&table, &cols))?;
             Ok(CommandOutput::Rows(rows))
         }
 
@@ -130,7 +134,7 @@ pub fn execute_command<S: DatabaseStorage>(
             columns,
         } => {
             let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            let rows = app.select_where_columns(&table, condition, &cols)?;
+            let rows = app.with_db(|db| db.select_where_columns(&table, condition, &cols))?;
             Ok(CommandOutput::Rows(rows))
         }
 

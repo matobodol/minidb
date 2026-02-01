@@ -1,6 +1,6 @@
 use crate::{
     application::{app_error::AppError, map_domain_error, map_storage_error},
-    domain::{Column, Database, DomainError},
+    domain::{Database, DomainError},
     storage::DatabaseStorage,
 };
 
@@ -106,10 +106,9 @@ impl<S: DatabaseStorage> AppManager<S> {
     }
 }
 
-// HELPER INTERNAL
 impl<S: DatabaseStorage> AppManager<S> {
     // mutable
-    fn with_db_mut<T>(
+    pub fn with_db_mut<T>(
         &mut self,
         f: impl FnOnce(&mut Database) -> Result<T, DomainError>,
     ) -> Result<T, AppError> {
@@ -130,9 +129,9 @@ impl<S: DatabaseStorage> AppManager<S> {
     }
 
     // read only
-    fn with_db<T>(
+    pub fn with_db<T>(
         &self,
-        f: impl FnOnce(&Database) -> Result<T, crate::domain::DomainError>,
+        f: impl FnOnce(&Database) -> Result<T, DomainError>,
     ) -> Result<T, AppError> {
         let name = self.current.as_ref().ok_or(AppError::NoDatabaseSelected)?;
 
@@ -141,130 +140,3 @@ impl<S: DatabaseStorage> AppManager<S> {
         f(db).map_err(map_domain_error)
     }
 }
-
-// TABLE OPERATION
-impl<S: DatabaseStorage> AppManager<S> {
-    pub fn create_table(&mut self, name: &str) -> Result<(), AppError> {
-        // self.with_db_mut(|db| db.create_table(name))
-        self.with_db_mut(|db| db.create_table(name))
-    }
-
-    pub fn drop_table(&mut self, name: &str) -> Result<usize, AppError> {
-        self.with_db_mut(|db| db.drop_table(name))
-    }
-
-    pub fn show_tables(&self) -> Result<Vec<String>, AppError> {
-        self.with_db(|db| Ok(db.list_tables()))
-    }
-
-    pub fn describe_table(&self, table: &str) -> Result<Vec<Column>, AppError> {
-        self.with_db(|db| db.describe_table(table))
-    }
-}
-
-// COLUMN OPERATION
-use crate::domain::{Constraint, DataType};
-
-impl<S: DatabaseStorage> AppManager<S> {
-    pub fn add_columns(
-        &mut self,
-        table: &str,
-        columns: Vec<(&str, DataType, &[Constraint])>,
-    ) -> Result<(), AppError> {
-        self.with_db_mut(|db| db.add_columns(table, columns))
-    }
-
-    pub fn delete_columns(&mut self, table: &str, columns: Vec<String>) -> Result<usize, AppError> {
-        self.with_db_mut(|db| db.delete_column(table, columns))
-    }
-}
-
-// ROW OPERATION
-use crate::domain::{Condition, Value};
-
-impl<S: DatabaseStorage> AppManager<S> {
-    pub fn insert_row(&mut self, table: &str, values: &[(&str, Value)]) -> Result<(), AppError> {
-        self.with_db_mut(|db| db.insert_row(table, values))
-    }
-
-    pub(crate) fn update_where(
-        &mut self,
-        table: &str,
-        conditions: &[Condition],
-        assignments: &[(String, Value)],
-    ) -> Result<usize, AppError> {
-        self.with_db_mut(|db| db.update_where(table, conditions, assignments))
-    }
-    pub(crate) fn delete_where(
-        &mut self,
-        table: &str,
-        conditions: &[Condition],
-    ) -> Result<usize, AppError> {
-        self.with_db_mut(|db| db.delete_where(table, conditions))
-    }
-}
-
-// SELECT (Read-Only-Api)
-impl<S: DatabaseStorage> AppManager<S> {
-    pub fn select_all(&self, table: &str) -> Result<Vec<Vec<Value>>, AppError> {
-        self.with_db(|db| db.select_all(table))
-    }
-
-    pub fn select_where(
-        &self,
-        table: &str,
-        condition: Condition,
-    ) -> Result<Vec<Vec<Value>>, AppError> {
-        self.with_db(|db| db.select_where(table, condition))
-    }
-
-    pub fn select_columns(
-        &self,
-        table: &str,
-        columns: &[&str],
-    ) -> Result<Vec<Vec<Value>>, AppError> {
-        self.with_db(|db| db.select_columns(table, columns))
-    }
-
-    pub fn select_where_columns(
-        &self,
-        table: &str,
-        condition: Condition,
-        columns: &[&str],
-    ) -> Result<Vec<Vec<Value>>, AppError> {
-        self.with_db(|db| db.select_where_columns(table, condition, columns))
-    }
-}
-
-// impl AppManager {
-//     pub fn new() -> Self {
-//         Self {
-//             loaded: HashMap::new(),
-//             current: None,
-//         }
-//     }
-//     pub fn create(&mut self, name: &str) -> Result<(), AppError> {
-//         if self.loaded.contains_key(name) {
-//             return Err(AppError::DatabaseAlreadyExists);
-//         }
-//         self.loaded.insert(name.to_string(), Database::new());
-//
-//         Ok(())
-//     }
-//
-//     pub fn db_use(&mut self, name: &str) {
-//         self.current = Some(name.to_string());
-//     }
-//
-//     fn db_mut(&mut self) -> Result<&mut Database, AppError> {
-//         let name = self.current.as_ref().ok_or(AppError::NoDatabaseSelected)?;
-//
-//         self.loaded.get_mut(name).ok_or(AppError::DatabaseNotFound)
-//     }
-//
-//     fn db(&self) -> Result<&Database, AppError> {
-//         let name = self.current.as_ref().ok_or(AppError::NoDatabaseSelected)?;
-//
-//         self.loaded.get(name).ok_or(AppError::DatabaseNotFound)
-//     }
-// }

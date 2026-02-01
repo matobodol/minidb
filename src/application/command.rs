@@ -80,10 +80,3 @@ impl Command {
         matches!(self, Command::Exit)
     }
 }
-
-#[derive(Debug)]
-pub struct ColumnDef {
-    pub name: String,
-    pub data_type: DataType,
-    pub constraints: Vec<Constraint>,
-}

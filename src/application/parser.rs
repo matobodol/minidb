@@ -69,10 +69,6 @@ pub fn parse_command(input: &str) -> Result<Command, AppError> {
     match refs.as_slice() {
         // =========================================================
         // EXIT / QUIT
-        //
-        // Contoh:
-        //   exit
-        //   quit
         // =========================================================
         ["exit"] | ["quit"] => Ok(Command::Exit),
 
