@@ -30,16 +30,16 @@ impl Column {
             constraint,
         }
     }
-    pub(super) fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         &self.name
     }
-    pub(super) fn data_type(&self) -> &DataType {
+    pub(crate) fn data_type(&self) -> &DataType {
         &self.data_type
     }
 }
 
 impl Column {
-    pub(super) fn has_constraint(&self, predicate: impl Fn(&Constraint) -> bool) -> bool {
+    pub(crate) fn has_constraint(&self, predicate: impl Fn(&Constraint) -> bool) -> bool {
         self.constraint.iter().any(predicate)
     }
 

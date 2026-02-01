@@ -112,20 +112,21 @@ pub fn execute_command<S: DatabaseStorage>(
 
         // ===== SELECT =====
         Command::SelectAll { table } => {
-            let rows = app.with_db(|db| db.select_all(&table))?;
+            app.select_all(&table)?;
 
-            Ok(CommandOutput::Rows(rows))
+            Ok(CommandOutput::Ok)
         }
 
         Command::SelectWhere { table, condition } => {
-            let rows = app.with_db(|db| db.select_where(&table, condition))?;
-            Ok(CommandOutput::Rows(rows))
+            app.select_where(&table, condition)?;
+
+            Ok(CommandOutput::Ok)
         }
 
         Command::SelectColumns { table, columns } => {
             let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            let rows = app.with_db(|db| db.select_columns(&table, &cols))?;
-            Ok(CommandOutput::Rows(rows))
+            app.select_columns(&table, &cols)?;
+            Ok(CommandOutput::Ok)
         }
 
         Command::SelectWhereColumns {
@@ -134,8 +135,8 @@ pub fn execute_command<S: DatabaseStorage>(
             columns,
         } => {
             let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            let rows = app.with_db(|db| db.select_where_columns(&table, condition, &cols))?;
-            Ok(CommandOutput::Rows(rows))
+            app.select_where_columns(&table, condition, &cols)?;
+            Ok(CommandOutput::Ok)
         }
 
         // ===== META =====

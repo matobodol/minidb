@@ -145,4 +145,9 @@ impl Database {
 
         tbl.select_where_columns(condition, columns)
     }
+
+    pub fn columns(&self, table: &str) -> Result<Vec<Column>, DomainError> {
+        let tbl = self.table(table)?;
+        Ok(tbl.columns().to_vec())
+    }
 }

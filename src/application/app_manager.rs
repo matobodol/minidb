@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+
+use prettytable::{Cell, Row, Table as PT, format};
+
 use crate::{
     application::{app_error::AppError, map_domain_error, map_storage_error},
-    domain::{Database, DomainError},
+    domain::{Column, Condition, DataType, Database, DomainError},
     storage::DatabaseStorage,
 };
 
@@ -139,4 +143,108 @@ impl<S: DatabaseStorage> AppManager<S> {
 
         f(db).map_err(map_domain_error)
     }
+}
+// Lookup API for application layer (read-only)
+impl<S: DatabaseStorage> AppManager<S> {
+    pub fn select_all(&self, table: &str) -> Result<(), AppError> {
+        let rows = self.with_db(|tbl| tbl.select_all(table))?;
+        let columns = self.with_db(|tbl| tbl.columns(table))?;
+        print_select(columns, rows);
+        Ok(())
+    }
+
+    pub fn select_where(&self, table: &str, condition: Condition) -> Result<(), AppError> {
+        let rows = self.with_db(|tbl| tbl.select_where(table, condition))?;
+        let columns = self.with_db(|tbl| tbl.columns(table))?;
+
+        print_select(columns, rows);
+
+        Ok(())
+    }
+
+    pub fn select_columns(&self, table: &str, columns: &[&str]) -> Result<(), AppError> {
+        let rows = self.with_db(|tbl| tbl.select_columns(table, columns))?;
+        print_select_column(columns, rows);
+
+        Ok(())
+    }
+
+    pub fn select_where_columns(
+        &self,
+        table: &str,
+        condition: Condition,
+        columns: &[&str],
+    ) -> Result<(), AppError> {
+        let rows = self.with_db(|tbl| tbl.select_where_columns(table, condition, columns))?;
+        print_select_column(columns, rows);
+
+        Ok(())
+    }
+}
+
+pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) {
+    let mut pt = PT::new();
+    pt.set_format(*format::consts::FORMAT_BOX_CHARS);
+
+    let mut format = HashMap::new();
+
+    let cells = columns
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            let align = match c.data_type() {
+                DataType::Int => "r",
+                DataType::Float => "r",
+                DataType::Str => "l",
+                DataType::Enum { variants: _ } => "c",
+            };
+            format.insert(i, align);
+            Cell::new(c.name())
+        })
+        .collect();
+
+    pt.add_row(Row::new(cells));
+
+    for row in rows {
+        let cells = row
+            .iter()
+            .enumerate()
+            .map(|(i, value)| {
+                if let Some(align) = format.get(&i) {
+                    if value == "-" {
+                        Cell::new(value).style_spec("c")
+                    } else {
+                        Cell::new(value).style_spec(align)
+                    }
+                } else {
+                    Cell::new("-").style_spec("c")
+                }
+            })
+            .collect();
+        pt.add_row(Row::new(cells));
+    }
+
+    pt.printstd();
+}
+
+pub fn print_select_column(columns: &[&str], rows: Vec<Vec<String>>) {
+    let mut pt = PT::new();
+    pt.set_format(*format::consts::FORMAT_BOX_CHARS);
+
+    let cells = columns
+        .iter()
+        .map(|c| Cell::new(c).style_spec("c"))
+        .collect();
+
+    pt.add_row(Row::new(cells));
+
+    for row in rows {
+        let cells = row
+            .iter()
+            .map(|value| Cell::new(value).style_spec("r"))
+            .collect();
+        pt.add_row(Row::new(cells));
+    }
+
+    pt.printstd();
 }

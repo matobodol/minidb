@@ -15,6 +15,3 @@ pub use parser::*;
 
 pub mod repl;
 pub use repl::*;
-
-pub(super) mod print_select;
-pub(super) use print_select::*;
