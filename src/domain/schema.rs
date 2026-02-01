@@ -131,3 +131,27 @@ impl Schema {
 
 // VALIDATOR Constraint
 // pending..
+// impl Schema {
+//     fn repo_already_uniq(&self) -> bool {
+//         if self
+//             .columns()
+//             .iter()
+//             .any(|c| c.has_constraint(|c| matches!(c, Constraint::Unique)))
+//         {
+//             return true;
+//         }
+//
+//         false
+//     }
+//
+//     fn candidate_already_uniq(&self, columns: &[Column]) -> bool {
+//         if columns
+//             .iter()
+//             .any(|c| c.has_constraint(|c| matches!(c, Constraint::Unique)))
+//         {
+//             return true;
+//         }
+//
+//         false
+//     }
+// }

@@ -1,5 +1,19 @@
 {
   "tables": {
+    "uniq": {
+      "schema": {
+        "columns": [
+          {
+            "name": "name",
+            "data_type": "Str",
+            "constraint": [
+              "Unique"
+            ]
+          }
+        ]
+      },
+      "rows": []
+    },
     "tes": {
       "schema": {
         "columns": [
@@ -19,7 +33,14 @@
           {
             "name": "alamat",
             "data_type": "Str",
-            "constraint": []
+            "constraint": [
+              "Nullable",
+              {
+                "Default": {
+                  "Str": "jl"
+                }
+              }
+            ]
           }
         ]
       },
@@ -46,20 +67,7 @@
               "Int": 22
             },
             {
-              "Absen": false
-            }
-          ]
-        },
-        {
-          "values": [
-            {
-              "Str": "jejen"
-            },
-            {
-              "Int": 23
-            },
-            {
-              "Str": "jl anggrek"
+              "Str": "jl abimanyu"
             }
           ]
         }

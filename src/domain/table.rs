@@ -6,12 +6,14 @@ use crate::domain::{
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Table {
+    id_uniq: Option<String>,
     schema: Schema,
     rows: Vec<Row>,
 }
 impl Table {
     pub(crate) fn new() -> Self {
         Self {
+            id_uniq: None,
             schema: Schema::new(),
             rows: Vec::new(),
         }
@@ -58,11 +60,11 @@ impl Table {
         &mut self,
         columns: Vec<(&str, DataType, &[Constraint])>,
     ) -> Result<(), DomainError> {
-        let mut found_uniq: bool = true;
+        let mut found_uniq: bool = false;
 
         for uniq in self.columns() {
             if uniq.has_constraint(|c| matches!(c, Constraint::Unique)) {
-                found_uniq = true && found_uniq;
+                found_uniq = true;
             }
         }
         for (_, _, c) in &columns {

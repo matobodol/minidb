@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use prettytable::{Cell, Row, Table as PT, format};
+use prettytable::{Cell, Row as ROW, Table as PT, format};
 
 use crate::{
     application::{app_error::AppError, map_domain_error, map_storage_error},
@@ -35,7 +35,6 @@ impl<S: DatabaseStorage> AppManager<S> {
 
     fn unload(&mut self, name: &str) -> Result<(), AppError> {
         self.loaded.unload(&name).map_err(map_storage_error)
-        // self.loaded.unload(name).map_err(map_storage_error)
     }
 
     fn get(&self, name: &str) -> Option<&Database> {
@@ -199,13 +198,23 @@ pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) {
                 DataType::Enum { variants: _ } => "c",
             };
             format.insert(i, align);
-            Cell::new(c.name())
+
+            if c.has_constraint(|c| matches!(c, crate::domain::Constraint::Unique)) {
+                let name = format!("*{}", c.name());
+                Cell::new(&name)
+                    .style_spec("c")
+                    .with_style(prettytable::Attr::Bold)
+            } else {
+                Cell::new(c.name())
+                    .style_spec("c")
+                    .with_style(prettytable::Attr::Bold)
+            }
         })
         .collect();
 
-    pt.add_row(Row::new(cells));
+    pt.add_row(ROW::new(cells));
 
-    for row in rows {
+    rows.into_iter().for_each(|row| {
         let cells = row
             .iter()
             .enumerate()
@@ -221,8 +230,8 @@ pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) {
                 }
             })
             .collect();
-        pt.add_row(Row::new(cells));
-    }
+        pt.add_row(ROW::new(cells));
+    });
 
     pt.printstd();
 }
@@ -236,14 +245,14 @@ pub fn print_select_column(columns: &[&str], rows: Vec<Vec<String>>) {
         .map(|c| Cell::new(c).style_spec("c"))
         .collect();
 
-    pt.add_row(Row::new(cells));
+    pt.add_row(ROW::new(cells));
 
     for row in rows {
         let cells = row
             .iter()
             .map(|value| Cell::new(value).style_spec("r"))
             .collect();
-        pt.add_row(Row::new(cells));
+        pt.add_row(ROW::new(cells));
     }
 
     pt.printstd();
