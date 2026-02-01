@@ -58,20 +58,24 @@ impl Table {
         &mut self,
         columns: Vec<(&str, DataType, &[Constraint])>,
     ) -> Result<(), DomainError> {
-        let column = self.columns();
+        let mut found_uniq: bool = true;
 
-        if column
-            .iter()
-            .any(|c| c.has_constraint(|c| matches!(c, Constraint::Unique)))
-        {
-            return Err(DomainError::ConstrainUniqeAlreadyExist);
+        for uniq in self.columns() {
+            if uniq.has_constraint(|c| matches!(c, Constraint::Unique)) {
+                found_uniq = true && found_uniq;
+            }
+        }
+        for (_, _, c) in &columns {
+            if c.iter().any(|c| matches!(c, Constraint::Unique)) && found_uniq {
+                return Err(DomainError::ConstrainUniqeAlreadyExist);
+            }
         }
 
         self.schema.add_column(columns)?;
 
         for row in &mut self.rows {
             if row.values().len() < self.schema.columns().len() {
-                row.append(Value::Absen);
+                row.append(Value::Absen(false));
             }
         }
         Ok(())
@@ -168,7 +172,7 @@ impl Table {
                         }
 
                         // 3. nullable / no constraint
-                        Ok(Value::Absen)
+                        Ok(Value::Absen(false))
                     }
                 }
             })

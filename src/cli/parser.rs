@@ -419,10 +419,11 @@ fn parse_value(token: &str) -> Result<Value, AppError> {
         return Ok(Value::Float(f));
     }
 
-    // null / absen
-    if token == "null" {
-        return Ok(Value::Absen);
-    }
+    // null bukan tipe untuk input
+    // // null / absen
+    // if token == "null" {
+    //     return Ok(Value::Absen(true));
+    // }
 
     // enum literal (identifier)
     if is_valid_identifier(token) {
@@ -468,11 +469,10 @@ fn parse_constraints(tokens: &[&str]) -> Result<Vec<Constraint>, AppError> {
                 i += 1;
             }
 
-            "unique" | "uniq" => {
-                constraints.push(Constraint::Unique);
-                i += 1;
-            }
-
+            // "unique" | "uniq" => {
+            //     constraints.push(Constraint::Unique);
+            //     i += 1;
+            // }
             "primary" => {
                 let next = tokens.get(i + 1);
                 if next != Some(&"key") {

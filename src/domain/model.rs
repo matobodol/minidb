@@ -17,7 +17,8 @@ impl DataType {
             (DataType::Enum { variants: allowed }, Value::Enum { value: val }) => {
                 allowed.contains(val)
             }
-            (_, Value::Absen) => true,
+            (_, Value::Absen(true)) => true,
+            (_, Value::Absen(false)) => false,
             _ => false,
         }
     }
@@ -43,13 +44,13 @@ pub enum Value {
     // sebagai pengisi panjang kolom dan baris tetap relasi
     // terpaksa karena belum nemu alternatifnya.
     // kemungkinan solusinya akan ditemukan pada saat membangun constraint.
-    Absen, // reperesentasi absen input. yah ini memang tidak jujur.
-           // INFO: saat ini Value::Absen hanya lahir dari add column.
+    Absen(bool), // reperesentasi absen input. yah ini memang tidak jujur.
+                 // INFO: saat ini Value::Absen hanya lahir dari add column dan constrain null.
 }
 impl Value {
     pub fn compare(&self, op: &Cmp, to_cmp: &Value) -> bool {
         match (op, self, to_cmp) {
-            (Cmp::Eq, Value::Absen, _) => true, //menghasilkan true masih dalam pertimbangan
+            (Cmp::Eq, Value::Absen(true), Value::Absen(true)) => true, //menghasilkan true masih dalam pertimbangan
             (Cmp::Eq, Value::Int(a), Value::Int(b)) => a == b,
             (Cmp::Eq, Value::Str(a), Value::Str(b)) => a == b,
             (Cmp::Eq, Value::Float(a), Value::Float(b)) => a == b,
