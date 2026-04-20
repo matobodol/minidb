@@ -4,9 +4,10 @@ use minidb::{
 };
 
 fn main() {
-    let storage = FileDatabaseStorage::new("./data");
+    let storage_path = "./data";
+    let storage = FileDatabaseStorage::new(storage_path);
+
     let mut app = AppManager::new(storage);
-    println!("{:#?}", app);
 
     run_repl(&mut app);
 }
@@ -34,6 +35,7 @@ fn main() {
 // SHOW TABLES;✅️
 // DESCRIBE users; -- alias DESC users;✅️
 
+// alter table users add column state enum("ok","no") not null✅️
 // ALTER TABLE users ADD COLUMN name str primary key not null, age int✅️
 // ALTER TABLE users DROP COLUMN name;✅️
 

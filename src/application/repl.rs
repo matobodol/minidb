@@ -4,6 +4,7 @@ use crate::application::{AppError, AppManager, CommandOutput, execute_command, p
 use crate::storage::DatabaseStorage;
 
 pub fn run_repl<S: DatabaseStorage>(app: &mut AppManager<S>) {
+    banner();
     let stdin = io::stdin();
 
     loop {
@@ -67,4 +68,29 @@ fn print_output(output: CommandOutput) {
 
 fn print_error(err: AppError) {
     println!("error: {:#?}", err);
+}
+
+fn banner() {
+    // Definisi ANSI codes untuk pewarnaan manual
+    let cyan = "\x1b[36m";
+    let bold = "\x1b[1m";
+    let reset = "\x1b[0m";
+
+    // Menggunakan raw string agar karakter ASCII art tidak berantakan
+    let banner = r#"
+    __  __ ___ _  _ ___ ___  ___ 
+   |  \/  |_ _| \| |_ _|   \| _ )
+   | |\/| || || .` || || |) | _ \
+   |_|  |_|___|_|\_|___|___/|___/
+    "#;
+
+    // Cetak banner dengan warna
+    println!("{}{}{}{}", bold, cyan, banner, reset);
+
+    // Header pemisah
+    println!(" {}{}{}", cyan, "=".repeat(35), reset);
+    println!("  Database Engine v0.0.1 - (beta)");
+    println!("  by @matobodol");
+    println!(" {}{}{}\n", cyan, "=".repeat(35), reset);
+    println!("{}Ready for commands...{}", cyan, reset);
 }
