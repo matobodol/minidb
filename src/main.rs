@@ -12,14 +12,13 @@ fn main() {
 }
 
 // exit ✅️
-// contoh: exit
-// contoh: quit
+// contoh: exit | quit | /q
 
 // create database✅️
 // contoh: create database mydb
 
 // use database✅️
-// contoh: use database mydb
+// contoh: use database mydb | use mydb
 
 // show databases✅️
 // contoh: show databases
@@ -37,5 +36,7 @@ fn main() {
 
 // ALTER TABLE users ADD COLUMN name str primary key not null, age int✅️
 // ALTER TABLE users DROP COLUMN name;✅️
-//
+
 // insert into users (name,age) values ("jono", 30)✅️
+// update users set age = 21 wherw name = "jono"✅️
+// delete from users where name = "jojon"✅️

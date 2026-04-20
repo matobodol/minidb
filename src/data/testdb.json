@@ -1,6 +1,7 @@
 {
   "tables": {
     "users": {
+      "id_uniq": null,
       "schema": {
         "columns": [
           {

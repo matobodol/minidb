@@ -70,7 +70,7 @@ pub fn parse_command(input: &str) -> Result<Command, AppError> {
         // =========================================================
         // EXIT / QUIT
         // =========================================================
-        ["exit"] | ["quit"] => Ok(Command::Exit),
+        ["exit"] | ["quit"] | ["/q"] | ["EXIT"] | ["QUIT"] => Ok(Command::Exit),
 
         // =========================================================
         // DATABASE
@@ -82,15 +82,19 @@ pub fn parse_command(input: &str) -> Result<Command, AppError> {
         //   show databases
         //   show current
         // =========================================================
-        ["create", "database", name] => Ok(Command::CreateDatabase {
-            name: name.to_string(),
-        }),
+        ["create", "database", name] | ["CREATE", "DATABASE", name] => {
+            Ok(Command::CreateDatabase {
+                name: name.to_string(),
+            })
+        }
 
-        ["use", "database", name] => Ok(Command::UseDatabase {
-            name: name.to_string(),
-        }),
+        ["use", "database", name] | ["USE", "DATABASE", name] | ["use", name] | ["USE", name] => {
+            Ok(Command::UseDatabase {
+                name: name.to_string(),
+            })
+        }
 
-        ["drop", "database", name] => Ok(Command::DropDatabase {
+        ["drop", "database", name] | ["DROP", "DATABASE", name] => Ok(Command::DropDatabase {
             name: name.to_string(),
         }),
 
@@ -105,6 +109,7 @@ pub fn parse_command(input: &str) -> Result<Command, AppError> {
         //   create table users
         //   drop table users
         //   show tables
+        //   describe users
         // =========================================================
         ["create", "table", name] => Ok(Command::CreateTable {
             name: name.to_string(),
@@ -160,8 +165,21 @@ pub fn parse_command(input: &str) -> Result<Command, AppError> {
                 values: pairs,
             })
         }
+
+        // =========================================================
+        // UPDATE ROW
+        //
+        // Contoh:
+        // update users set age = 21 wherw name = "jono"
+        // =========================================================
         ["update", table, rest @ ..] => parse_update(table, rest),
 
+        // =========================================================
+        // DELETE ROW
+        //
+        // Contoh:
+        // delete from users where name = "jojon"
+        // =========================================================
         ["delete", "from", table, "where", ..] => {
             let condition = parse_condition(&tokens[3..])?;
             Ok(Command::DeleteWhere {
