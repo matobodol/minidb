@@ -90,7 +90,7 @@ fn banner() {
     // Header pemisah
     println!(" {}{}{}", cyan, "=".repeat(35), reset);
     println!("  Database Engine v0.0.1 - (beta)");
-    println!("  by @matobodol");
+    println!("  @matobodol");
     println!(" {}{}{}\n", cyan, "=".repeat(35), reset);
     println!("{}Ready for commands...{}", cyan, reset);
 }

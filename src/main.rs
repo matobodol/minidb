@@ -1,11 +1,11 @@
 use minidb::{
     application::{AppManager, run_repl},
-    storage::FileDatabaseStorage,
+    storage::FileStorage,
 };
 
 fn main() {
     let storage_path = "./data";
-    let storage = FileDatabaseStorage::new(storage_path);
+    let storage = FileStorage::new(storage_path);
 
     let mut app = AppManager::new(storage);
 
@@ -35,10 +35,12 @@ fn main() {
 // SHOW TABLES;✅️
 // DESCRIBE users; -- alias DESC users;✅️
 
+// alter table users add column state enum(ok, no) default ok✅️
 // alter table users add column state enum("ok","no") not null✅️
 // ALTER TABLE users ADD COLUMN name str primary key not null, age int✅️
 // ALTER TABLE users DROP COLUMN name;✅️
 
+// insert into users (name,status) values ("jono", ok)✅️
 // insert into users (name,age) values ("jono", 30)✅️
 // update users set age = 21 wherw name = "jono"✅️
 // delete from users where name = "jojon"✅️

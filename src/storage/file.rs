@@ -2,16 +2,16 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use crate::{
     domain::Database,
-    storage::{DatabaseStorage, StorageError},
+    storage::{DatabaseStorage as Storage, StorageError},
 };
 
 #[derive(Debug)]
-pub struct FileDatabaseStorage {
+pub struct FileStorage {
     root: PathBuf,
     loaded: HashMap<String, Database>,
 }
 
-impl FileDatabaseStorage {
+impl FileStorage {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         let root = root.into();
         std::fs::create_dir_all(&root).ok(); // infra concern
@@ -27,7 +27,7 @@ impl FileDatabaseStorage {
     }
 }
 
-impl DatabaseStorage for FileDatabaseStorage {
+impl Storage for FileStorage {
     fn save(&mut self, name: &str) -> Result<(), StorageError> {
         let db = self.loaded.get(name).ok_or(StorageError::NotLoaded)?;
         let path = self.db_path(name);

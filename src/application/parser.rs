@@ -448,6 +448,19 @@ fn parse_value(token: &str) -> Result<Value, AppError> {
     //     return Ok(Value::Absen(true));
     // }
 
+    // Handle enum("value") atau enum(value)
+    if token.starts_with("enum(") && token.ends_with(')') {
+        let inner = &token[5..token.len() - 1];
+        // Opsional: bersihkan tanda kutip jika di dalam enum ada kutip, misal enum("lulus")
+        let clean_inner = inner.trim_matches('"');
+
+        if is_valid_identifier(clean_inner) {
+            return Ok(Value::Enum {
+                value: clean_inner.to_string(),
+            });
+        }
+    }
+
     // enum literal (identifier)
     if is_valid_identifier(token) {
         return Ok(Value::Enum {
