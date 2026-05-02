@@ -1,5 +1,112 @@
 {
   "tables": {
+    "uniq": {
+      "id_uniq": null,
+      "schema": {
+        "columns": [
+          {
+            "name": "name",
+            "data_type": "Str",
+            "constraint": [
+              "Unique"
+            ]
+          },
+          {
+            "name": "id",
+            "data_type": "Int",
+            "constraint": [
+              {
+                "Default": {
+                  "Int": 100
+                }
+              }
+            ]
+          },
+          {
+            "name": "status",
+            "data_type": {
+              "Enum": {
+                "variants": [
+                  "lulus",
+                  "gagal"
+                ]
+              }
+            },
+            "constraint": [
+              {
+                "Default": {
+                  "Enum": {
+                    "value": "gagal"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "rows": [
+        {
+          "values": [
+            {
+              "Str": "jini"
+            },
+            {
+              "Int": 7
+            },
+            {
+              "Enum": {
+                "value": "lulus"
+              }
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Str": "jono"
+            },
+            {
+              "Int": 5
+            },
+            {
+              "Enum": {
+                "value": "lulus"
+              }
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Str": "joni"
+            },
+            {
+              "Int": 1
+            },
+            {
+              "Enum": {
+                "value": "gagal"
+              }
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Str": "jani"
+            },
+            {
+              "Int": 2
+            },
+            {
+              "Enum": {
+                "value": "gagal"
+              }
+            }
+          ]
+        }
+      ]
+    },
     "tes": {
       "id_uniq": null,
       "schema": {
@@ -81,83 +188,6 @@
             },
             {
               "Str": "jl"
-            }
-          ]
-        }
-      ]
-    },
-    "uniq": {
-      "id_uniq": null,
-      "schema": {
-        "columns": [
-          {
-            "name": "name",
-            "data_type": "Str",
-            "constraint": [
-              "Unique"
-            ]
-          },
-          {
-            "name": "id",
-            "data_type": "Int",
-            "constraint": [
-              {
-                "Default": {
-                  "Int": 100
-                }
-              }
-            ]
-          },
-          {
-            "name": "status",
-            "data_type": {
-              "Enum": {
-                "variants": [
-                  "lulus",
-                  "gagal"
-                ]
-              }
-            },
-            "constraint": [
-              {
-                "Default": {
-                  "Enum": {
-                    "value": "gagal"
-                  }
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "rows": [
-        {
-          "values": [
-            {
-              "Str": "jana"
-            },
-            {
-              "Int": 100
-            },
-            {
-              "Enum": {
-                "value": "gagal"
-              }
-            }
-          ]
-        },
-        {
-          "values": [
-            {
-              "Str": "jini"
-            },
-            {
-              "Int": 7
-            },
-            {
-              "Enum": {
-                "value": "lulus"
-              }
             }
           ]
         }

@@ -12,12 +12,12 @@ pub struct FileStorage {
 }
 
 impl FileStorage {
-    pub fn new(root: impl Into<PathBuf>) -> Self {
-        let root = root.into();
-        std::fs::create_dir_all(&root).ok(); // infra concern
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        let path = path.into();
+        std::fs::create_dir_all(&path).ok(); // infra concern
 
         Self {
-            root,
+            root: path,
             loaded: HashMap::new(),
         }
     }

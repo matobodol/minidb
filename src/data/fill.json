@@ -1,0 +1,123 @@
+{
+  "tables": {
+    "rdb": {
+      "id_uniq": null,
+      "schema": {
+        "columns": [
+          {
+            "name": "id",
+            "data_type": "Int",
+            "constraint": [
+              "Unique",
+              "NotNull"
+            ]
+          },
+          {
+            "name": "name",
+            "data_type": "Str",
+            "constraint": []
+          },
+          {
+            "name": "status",
+            "data_type": {
+              "Enum": {
+                "variants": [
+                  "lulus",
+                  "gagal"
+                ]
+              }
+            },
+            "constraint": [
+              {
+                "Default": {
+                  "Enum": {
+                    "value": "gagal"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "jurusan",
+            "data_type": "Str",
+            "constraint": []
+          }
+        ]
+      },
+      "rows": [
+        {
+          "values": [
+            {
+              "Int": 1
+            },
+            {
+              "Str": "jono"
+            },
+            {
+              "Enum": {
+                "value": "lulus"
+              }
+            },
+            {
+              "Absen": false
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Int": 2
+            },
+            {
+              "Str": "joni"
+            },
+            {
+              "Enum": {
+                "value": "gagal"
+              }
+            },
+            {
+              "Str": "teknik mesin berat"
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Int": 3
+            },
+            {
+              "Str": "jini"
+            },
+            {
+              "Enum": {
+                "value": "gagal"
+              }
+            },
+            {
+              "Str": "tata boga"
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Int": 4
+            },
+            {
+              "Str": "jani"
+            },
+            {
+              "Enum": {
+                "value": "lulus"
+              }
+            },
+            {
+              "Absen": false
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

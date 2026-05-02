@@ -121,7 +121,7 @@ pub fn parse_command(input: &str) -> Result<Command, AppError> {
 
         ["show", "tables"] => Ok(Command::ShowTables),
 
-        ["describe", table] => Ok(Command::DescribeTable {
+        ["describe", table] | ["desc", table] => Ok(Command::DescribeTable {
             table: table.to_string(),
         }),
 

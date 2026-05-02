@@ -32,20 +32,21 @@ pub enum Value {
     Enum { value: String },
 
     // Date(chrono::NaiveDate),
-    //saya ragu menggunakan crate luar pada angine.
-    //bukan karena crate ini jelek justru sebaliknya powerfull.
-    //alasannya hanya menghindari engine menjadi kebergantungan dengan ekosistem eksternal
-    //
-    // goal: logika Value::Date("YYYY-MM-HH") harus lahir dari dalam engine.
-    // Value::Date akan release ketika otak saya memandang String manipulation sudah tidak rumit.
+    /* saya ragu menggunakan crate luar pada angine.
+    bukan karena crate ini jelek justru sebaliknya powerfull.
+    alasannya hanya menghindari engine menjadi kebergantungan dengan ekosistem eksternal
 
-    // ini bukan data asli.
-    // terpaksa di hadirkan
-    // sebagai pengisi panjang kolom dan baris tetap relasi
-    // terpaksa karena belum nemu alternatifnya.
-    // kemungkinan solusinya akan ditemukan pada saat membangun constraint.
-    Absen(bool), // reperesentasi absen input. yah ini memang tidak jujur.
-                 // INFO: saat ini Value::Absen hanya lahir dari add column dan constrain null.
+    goal: logika Value::Date("YYYY-MM-HH") harus lahir dari dalam engine.
+    Value::Date akan release ketika otak saya memandang String manipulation sudah tidak rumit.
+    */
+    Absen(bool),
+    /* reperesentasi absen input. yah ini memang tidak jujur.
+    INFO: saat ini Value::Absen hanya lahir dari add column dan constrain null.
+    ini bukan data asli.
+    terpaksa di hadirkan karena belum nemu alternatifnya.
+    sebagai pengisi panjang kolom dan baris tetap relasi
+    kemungkinan solusinya akan ditemukan pada saat membangun constraint.
+    */
 }
 impl Value {
     pub fn compare(&self, op: &Cmp, to_cmp: &Value) -> bool {
