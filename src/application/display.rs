@@ -1,5 +1,6 @@
 use comfy_table::{
     Attribute, Cell, CellAlignment, Color, ContentArrangement, Table, TableComponent,
+    modifiers::UTF8_ROUND_CORNERS,
     presets::{UTF8_FULL, UTF8_FULL_CONDENSED},
 };
 
@@ -8,6 +9,7 @@ use crate::domain::{Column, Constraint, DataType};
 pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) -> usize {
     let mut table = Table::new();
 
+    table.apply_modifier(UTF8_ROUND_CORNERS);
     table.set_content_arrangement(ContentArrangement::Dynamic);
     // table.load_preset(UTF8_FULL); //full border
     table.load_preset(UTF8_FULL_CONDENSED);
@@ -65,6 +67,7 @@ pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) -> usize {
 pub fn print_select_column(columns: &[&str], rows: Vec<Vec<String>>) -> usize {
     let mut table = Table::new();
 
+    table.apply_modifier(UTF8_ROUND_CORNERS);
     table.set_content_arrangement(ContentArrangement::Dynamic);
 
     // table.load_preset(UTF8_FULL); //full border

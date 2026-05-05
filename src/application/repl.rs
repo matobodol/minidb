@@ -5,10 +5,20 @@ use crate::{
     storage::DatabaseStorage,
 };
 
+pub fn print_welcome() {
+    println!("╔══════════════════════════════╗");
+    println!("║        MINI DB ENGINE        ║");
+    println!("║          v0.1.0              ║");
+    println!("╚══════════════════════════════╝");
+    println!("Type 'exit' to quit");
+    println!();
+}
+
 pub fn start<S>(app: &mut AppManager<S>)
 where
     S: DatabaseStorage,
 {
+    print_welcome();
     let mut rl = DefaultEditor::new().unwrap();
 
     loop {
@@ -42,7 +52,7 @@ where
 
                 // EXIT
                 if cmd.is_exit() {
-                    println!("bye 👋");
+                    println!("query ok. Exit..");
                     break;
                 }
 
