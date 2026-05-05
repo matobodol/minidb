@@ -1,19 +1,23 @@
-use crate::domain::{DataType, Value};
+use crate::domain::Value;
 
 #[derive(Debug)]
 pub enum DomainError {
+    InvalidOperation(String),
     // SCHEMA
-    TypeMismatch {
-        column_index: usize,
-        expected: DataType,
-        found: Value,
-    },
+    TypeMismatch,
     ColumnCountMismatch {
         expected: usize,
         found: usize,
     },
 
     // CONSTRAINT
+    MultiplePrimaryKey,
+    InvalidPrimaryKeyNullable,
+    MultipleAutoIncrement,
+    InvalidAutoIncrementType,
+    DuplicateEnumVariant,
+    InvalidEnumDefault,
+    InvalidDefaultType,
     ConstrainUniqeAlreadyExist,
     NotAllowedDeleteColumnUniq(String),
     NotAllowedNull,
@@ -38,4 +42,5 @@ pub enum DomainError {
     ColumnIndexNotFound(usize),
     ColumnNotFound(String),
     DuplicateColumnName(String),
+    ColumnValueMismatch,
 }

@@ -1,6 +1,6 @@
 use crate::domain::{Condition, Constraint, DataType, Value};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Command {
     // ===== REPL =====
     Exit,
@@ -44,7 +44,8 @@ pub enum Command {
     // ===== ROW =====
     InsertRow {
         table: String,
-        values: Vec<(String, Value)>,
+        columns: Option<Vec<String>>,
+        rows: Vec<Vec<Value>>,
     },
 
     UpdateWhere {
@@ -52,7 +53,8 @@ pub enum Command {
         assignments: Vec<(String, Value)>,
         conditions: Vec<Condition>,
     },
-    DeleteWhere {
+
+    Delete {
         table: String,
         conditions: Vec<Condition>,
     },
@@ -61,18 +63,21 @@ pub enum Command {
     SelectAll {
         table: String,
     },
-    SelectWhere {
-        table: String,
-        condition: Condition,
-    },
+
     SelectColumns {
         table: String,
         columns: Vec<String>,
     },
-    SelectWhereColumns {
+
+    SelectWhere {
         table: String,
-        condition: Condition,
+        conditions: Vec<Condition>,
+    },
+
+    SelectColumnsWhere {
+        table: String,
         columns: Vec<String>,
+        conditions: Vec<Condition>,
     },
 }
 impl Command {

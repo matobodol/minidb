@@ -40,13 +40,7 @@ impl Database {
         self.tables.keys().cloned().collect()
     }
 
-    pub fn describe_table(&self, name: &str) -> Result<Vec<Column>, DomainError> {
-        let table = self.table(name)?;
-
-        Ok(table.columns().to_vec())
-    }
-
-    fn table(&self, name: &str) -> Result<&Table, DomainError> {
+    pub fn table(&self, name: &str) -> Result<&Table, DomainError> {
         self.tables
             .get(name)
             .ok_or(DomainError::TableNotFound(name.to_string()))
@@ -81,29 +75,34 @@ impl Database {
 
 // ROW OPERATION
 impl Database {
-    pub fn insert_row(&mut self, table: &str, values: &[(&str, Value)]) -> Result<(), DomainError> {
+    pub fn insert(
+        &mut self,
+        table: &str,
+        columns: Option<Vec<String>>,
+        rows: Vec<Vec<Value>>, // multi-row
+    ) -> Result<(), DomainError> {
         let tbl = self.table_mut(table)?;
 
-        tbl.insert_row(values)
+        tbl.insert(columns, rows)
     }
 
-    pub(crate) fn update_where(
+    pub(crate) fn update_rows(
+        &mut self,
+        table: &str,
+        assignments: Vec<(String, Value)>,
+        conditions: Vec<Condition>,
+    ) -> Result<usize, DomainError> {
+        let tbl = self.table_mut(table)?;
+        tbl.update_rows(assignments.into(), conditions.into())
+    }
+
+    pub(crate) fn delete_rows(
         &mut self,
         table: &str,
         conditions: &[Condition],
-        assignments: &[(String, Value)],
     ) -> Result<usize, DomainError> {
         let tbl = self.table_mut(table)?;
-        tbl.update_where(conditions, assignments)
-    }
-
-    pub(crate) fn delete_where(
-        &mut self,
-        table: &str,
-        conditions: &[Condition],
-    ) -> Result<usize, DomainError> {
-        let tbl = self.table_mut(table)?;
-        tbl.delete_row(conditions)
+        tbl.delete_rows(conditions)
     }
 }
 
@@ -118,11 +117,11 @@ impl Database {
     pub fn select_where(
         &self,
         table: &str,
-        condition: Condition,
+        conditions: Vec<Condition>,
     ) -> Result<Vec<Vec<String>>, DomainError> {
         let tbl = self.table(table)?;
 
-        tbl.select_where(condition)
+        tbl.select_where(conditions)
     }
 
     pub fn select_columns(
@@ -135,15 +134,15 @@ impl Database {
         tbl.select_columns(columns)
     }
 
-    pub fn select_where_columns(
+    pub fn select_columns_where(
         &self,
         table: &str,
-        condition: Condition,
+        conditions: Vec<Condition>,
         columns: &[&str],
     ) -> Result<Vec<Vec<String>>, DomainError> {
         let tbl = self.table(table)?;
 
-        tbl.select_where_columns(condition, columns)
+        tbl.select_columns_where(conditions, columns)
     }
 
     pub fn columns(&self, table: &str) -> Result<Vec<Column>, DomainError> {

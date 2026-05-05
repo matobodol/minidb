@@ -1,10 +1,9 @@
-use std::collections::HashMap;
-
-use prettytable::{Cell, Row as ROW, Table as PT, format};
-
 use crate::{
-    application::{app_error::AppError, map_domain_error, map_storage_error},
-    domain::{Column, Condition, DataType, Database, DomainError},
+    application::{
+        app_error::AppError, map_domain_error, map_storage_error, print_describe, print_select,
+        print_select_column,
+    },
+    domain::{Condition, Database, DomainError},
     storage::DatabaseStorage,
 };
 
@@ -44,9 +43,6 @@ impl<S: DatabaseStorage> AppManager<S> {
     fn get_mut(&mut self, name: &str) -> Option<&mut Database> {
         self.loaded.get_mut(name)
     }
-    fn list(&self) -> Vec<String> {
-        self.loaded.list()
-    }
 
     fn exists(&self, name: &str) -> bool {
         self.loaded.exists(name)
@@ -62,6 +58,10 @@ impl<S: DatabaseStorage> AppManager<S> {
         Ok(())
     }
 
+    pub fn current_db(&self) -> Option<&str> {
+        self.current.as_deref()
+    }
+
     pub fn create_database(&mut self, name: &str) -> Result<(), AppError> {
         if self.exists(name) {
             return Err(AppError::DatabaseAlreadyExists);
@@ -71,6 +71,11 @@ impl<S: DatabaseStorage> AppManager<S> {
     }
 
     pub fn use_database(&mut self, name: &str) -> Result<(), AppError> {
+        if name.eq_ignore_ascii_case("none") {
+            self.current = None;
+            return Ok(());
+        }
+
         if !self.exists(name) {
             return Err(AppError::DatabaseNotFound);
         }
@@ -100,12 +105,12 @@ impl<S: DatabaseStorage> AppManager<S> {
         self.loaded.drop(name).map_err(map_storage_error)
     }
 
-    pub fn show_current(&self) -> Result<String, AppError> {
+    pub fn show_current_database(&self) -> Result<String, AppError> {
         self.current.clone().ok_or(AppError::NoDatabaseSelected)
     }
 
     pub fn show_databases(&self) -> Vec<String> {
-        self.list()
+        self.loaded.list()
     }
 }
 
@@ -145,115 +150,46 @@ impl<S: DatabaseStorage> AppManager<S> {
 }
 // Lookup API for application layer (read-only)
 impl<S: DatabaseStorage> AppManager<S> {
+    pub fn describe(&self, table: &str) -> Result<(), AppError> {
+        let columns = self.with_db(|tbl| tbl.columns(table))?;
+
+        print_describe(columns);
+        Ok(())
+    }
+
     pub fn select_all(&self, table: &str) -> Result<(), AppError> {
         let rows = self.with_db(|tbl| tbl.select_all(table))?;
         let columns = self.with_db(|tbl| tbl.columns(table))?;
+
         print_select(columns, rows);
         Ok(())
     }
 
-    pub fn select_where(&self, table: &str, condition: Condition) -> Result<(), AppError> {
-        let rows = self.with_db(|tbl| tbl.select_where(table, condition))?;
+    pub fn select_where(&self, table: &str, conditions: Vec<Condition>) -> Result<(), AppError> {
+        let rows = self.with_db(|tbl| tbl.select_where(table, conditions.clone()))?;
         let columns = self.with_db(|tbl| tbl.columns(table))?;
 
         print_select(columns, rows);
-
         Ok(())
     }
 
     pub fn select_columns(&self, table: &str, columns: &[&str]) -> Result<(), AppError> {
         let rows = self.with_db(|tbl| tbl.select_columns(table, columns))?;
-        print_select_column(columns, rows);
 
+        print_select_column(columns, rows);
         Ok(())
     }
 
     pub fn select_where_columns(
         &self,
         table: &str,
-        condition: Condition,
+        conditions: Vec<Condition>,
         columns: &[&str],
     ) -> Result<(), AppError> {
-        let rows = self.with_db(|tbl| tbl.select_where_columns(table, condition, columns))?;
-        print_select_column(columns, rows);
+        let rows =
+            self.with_db(|tbl| tbl.select_columns_where(table, conditions.clone(), columns))?;
 
+        print_select_column(columns, rows);
         Ok(())
     }
-}
-
-pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) {
-    let mut pt = PT::new();
-    pt.set_format(*format::consts::FORMAT_BOX_CHARS);
-
-    let mut format = HashMap::new();
-
-    let cells = columns
-        .iter()
-        .enumerate()
-        .map(|(i, c)| {
-            let align = match c.data_type() {
-                DataType::Int => "r",
-                DataType::Float => "r",
-                DataType::Str => "l",
-                DataType::Enum { variants: _ } => "c",
-            };
-            format.insert(i, align);
-
-            if c.has_constraint(|c| matches!(c, crate::domain::Constraint::Unique)) {
-                let name = format!("*{}", c.name());
-                Cell::new(&name)
-                    .style_spec("c")
-                    .with_style(prettytable::Attr::Bold)
-            } else {
-                Cell::new(c.name())
-                    .style_spec("c")
-                    .with_style(prettytable::Attr::Bold)
-            }
-        })
-        .collect();
-
-    pt.add_row(ROW::new(cells));
-
-    rows.into_iter().for_each(|row| {
-        let cells = row
-            .iter()
-            .enumerate()
-            .map(|(i, value)| {
-                if let Some(align) = format.get(&i) {
-                    if value == "-" {
-                        Cell::new(value).style_spec("c")
-                    } else {
-                        Cell::new(value).style_spec(align)
-                    }
-                } else {
-                    Cell::new("-").style_spec("c")
-                }
-            })
-            .collect();
-        pt.add_row(ROW::new(cells));
-    });
-
-    pt.printstd();
-}
-
-pub fn print_select_column(columns: &[&str], rows: Vec<Vec<String>>) {
-    let mut pt = PT::new();
-    pt.set_format(*format::consts::FORMAT_BOX_CHARS);
-
-    let cells = columns
-        .iter()
-        .map(|c| Cell::new(c).style_spec("c"))
-        .collect();
-
-    pt.add_row(ROW::new(cells));
-
-    for row in rows {
-        let cells = row
-            .iter()
-            .map(|value| Cell::new(value).style_spec("r"))
-            .collect();
-        pt.add_row(ROW::new(cells));
-    }
-
-    pt.printstd();
 }

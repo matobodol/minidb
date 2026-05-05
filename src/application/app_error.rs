@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum AppError {
+    InvalidSyntax,
     DatabaseAlreadyExists,
     DatabaseNotFound,
     NoDatabaseSelected,
@@ -12,6 +13,18 @@ pub enum AppError {
     NotFound(String),
 
     InternalError,
+}
+
+use std::fmt;
+
+impl fmt::Display for AppError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AppError::InvalidCommand(msg) => write!(f, "{}", msg),
+            AppError::InvalidSyntax => write!(f, "invalid syntax"),
+            _ => write!(f, "{:?}", self),
+        }
+    }
 }
 
 use crate::{domain::DomainError, storage::StorageError};
@@ -34,6 +47,10 @@ pub fn map_storage_error(err: StorageError) -> AppError {
 
 pub fn map_domain_error(err: DomainError) -> AppError {
     match err {
+        DomainError::InvalidOperation(msg) => AppError::InvalidOperation(msg),
+        DomainError::ColumnValueMismatch => {
+            AppError::InvalidOperation("Column value mis match".into())
+        }
         // ===== SCHEMA =====
         DomainError::TypeMismatch { .. } => {
             AppError::InvalidOperation("Inserted value has incompatible type".into())
@@ -58,6 +75,35 @@ pub fn map_domain_error(err: DomainError) -> AppError {
         }
         DomainError::ConstrainUniqeAlreadyExist => {
             AppError::ConstraintViolation("Column with unique is already exist.".into())
+        }
+
+        // ===== CONSTRAINT (NEW) =====
+        DomainError::MultiplePrimaryKey => {
+            AppError::ConstraintViolation("Multiple primary key is not allowed".into())
+        }
+
+        DomainError::InvalidPrimaryKeyNullable => {
+            AppError::ConstraintViolation("Primary key cannot be nullable".into())
+        }
+
+        DomainError::MultipleAutoIncrement => {
+            AppError::ConstraintViolation("Multiple auto increment column is not allowed".into())
+        }
+
+        DomainError::InvalidAutoIncrementType => AppError::ConstraintViolation(
+            "Auto increment is only allowed for numeric columns".into(),
+        ),
+
+        DomainError::DuplicateEnumVariant => {
+            AppError::InvalidOperation("Duplicate enum variant is not allowed".into())
+        }
+
+        DomainError::InvalidEnumDefault => {
+            AppError::ConstraintViolation("Default value is not part of enum variants".into())
+        }
+
+        DomainError::InvalidDefaultType => {
+            AppError::ConstraintViolation("Default value does not match column type".into())
         }
 
         // ===== ROW =====

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{DataType, Value};
+use crate::domain::{DataType, DomainError, Value};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Constraint {
@@ -8,6 +8,7 @@ pub enum Constraint {
     NotNull,
     Unique,
     Increment,
+    PrimaryKey,
     Default(Value),
 }
 
@@ -43,11 +44,78 @@ impl Column {
         self.constraint.iter().any(predicate)
     }
 
-    pub(super) fn get_constraint<T>(
-        &self,
-        extractor: impl Fn(&Constraint) -> Option<T>,
-    ) -> Option<T> {
+    pub fn get_constraint<T>(&self, extractor: impl Fn(&Constraint) -> Option<T>) -> Option<T> {
         self.constraint.iter().find_map(extractor)
+    }
+    pub(crate) fn default_value(&self) -> Option<Value> {
+        self.get_constraint(|c| {
+            if let Constraint::Default(v) = c {
+                Some(v.clone())
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl Column {
+    pub(crate) fn is_nullable(&self) -> bool {
+        !self.has_constraint(|c| matches!(c, Constraint::NotNull | Constraint::PrimaryKey))
+    }
+
+    pub(crate) fn is_unique(&self) -> bool {
+        self.has_constraint(|c| matches!(c, Constraint::Unique | Constraint::PrimaryKey))
+    }
+
+    pub(crate) fn is_increment(&self) -> bool {
+        self.has_constraint(|c| matches!(c, Constraint::Increment))
+    }
+}
+impl Column {
+    pub(crate) fn enforce<'a>(
+        &self,
+        input: Option<Value>,
+        mut existing_values: impl Iterator<Item = &'a Value>,
+        row_count: usize,
+    ) -> Result<Value, DomainError> {
+        // =====================
+        // RESOLVE VALUE
+        // =====================
+        let v = match input {
+            Some(v) => self.data_type.coerce_value(v)?,
+
+            None => {
+                // AUTO INCREMENT
+                if self.is_increment() {
+                    Value::Int((row_count as i64) + 1)
+                }
+                // DEFAULT
+                else if let Some(default) = self.default_value() {
+                    self.data_type.coerce_value(default)?
+                }
+                // NOT NULL
+                else if !self.is_nullable() {
+                    return Err(DomainError::NotAllowedNull);
+                }
+                // NULL
+                else {
+                    Value::Null
+                }
+            }
+        };
+
+        // =====================
+        // UNIQUE / PRIMARY KEY
+        // =====================
+        if self.is_unique() {
+            if !matches!(v, Value::Null) {
+                if existing_values.any(|e| e == &v) {
+                    return Err(DomainError::NotUniqValue(self.name.clone()));
+                }
+            }
+        }
+
+        Ok(v)
     }
 }
 

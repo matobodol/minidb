@@ -1,6 +1,6 @@
 {
   "tables": {
-    "rdb": {
+    "inc": {
       "id_uniq": null,
       "schema": {
         "columns": [
@@ -8,8 +8,28 @@
             "name": "id",
             "data_type": "Int",
             "constraint": [
-              "Unique",
-              "NotNull"
+              "PrimaryKey",
+              "Increment"
+            ]
+          },
+          {
+            "name": "name",
+            "data_type": "Str",
+            "constraint": []
+          }
+        ]
+      },
+      "rows": []
+    },
+    "tes": {
+      "id_uniq": null,
+      "schema": {
+        "columns": [
+          {
+            "name": "id",
+            "data_type": "Int",
+            "constraint": [
+              "PrimaryKey"
             ]
           },
           {
@@ -18,12 +38,12 @@
             "constraint": []
           },
           {
-            "name": "status",
+            "name": "state",
             "data_type": {
               "Enum": {
                 "variants": [
-                  "lulus",
-                  "gagal"
+                  "gagal",
+                  "lulus"
                 ]
               }
             },
@@ -36,21 +56,6 @@
                 }
               }
             ]
-          },
-          {
-            "name": "jurusan",
-            "data_type": "Str",
-            "constraint": []
-          },
-          {
-            "name": "a",
-            "data_type": "Int",
-            "constraint": []
-          },
-          {
-            "name": "b",
-            "data_type": "Int",
-            "constraint": []
           }
         ]
       },
@@ -65,12 +70,9 @@
             },
             {
               "Enum": {
-                "value": "lulus"
+                "value": "gagal"
               }
-            },
-            "Null",
-            "Null",
-            "Null"
+            }
           ]
         },
         {
@@ -85,12 +87,7 @@
               "Enum": {
                 "value": "gagal"
               }
-            },
-            {
-              "Str": "teknik mesin berat"
-            },
-            "Null",
-            "Null"
+            }
           ]
         },
         {
@@ -99,18 +96,28 @@
               "Int": 3
             },
             {
+              "Str": "joni"
+            },
+            {
+              "Enum": {
+                "value": "gagal"
+              }
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Int": 43
+            },
+            {
               "Str": "jini"
             },
             {
               "Enum": {
-                "value": "lulus"
+                "value": "gagal"
               }
-            },
-            {
-              "Str": "tata boga"
-            },
-            "Null",
-            "Null"
+            }
           ]
         }
       ]

@@ -1,145 +1,103 @@
 use crate::{
     application::{AppError, AppManager, Command},
-    domain::{Column, Constraint, DataType, Value},
+    domain::{Constraint, DataType},
     storage::DatabaseStorage,
 };
 
-#[derive(Debug)]
-pub enum CommandOutput {
-    Ok,
-    Affected(usize),
-    Rows(Vec<Vec<String>>),
-    Columns(Vec<Column>),
-    Message(String),
-    Exit,
-}
+pub fn execute<S: DatabaseStorage>(cmd: Command, app: &mut AppManager<S>) -> Result<(), AppError> {
+    match cmd {
+        // ===== REPL =====
+        Command::Exit => Ok(()),
 
-pub fn execute_command<S: DatabaseStorage>(
-    app: &mut AppManager<S>,
-    command: Command,
-) -> Result<CommandOutput, AppError> {
-    match command {
         // ===== DATABASE =====
-        Command::CreateDatabase { name } => {
-            app.create_database(&name)?;
-            Ok(CommandOutput::Ok)
-        }
-
-        Command::UseDatabase { name } => {
-            app.use_database(&name)?;
-            Ok(CommandOutput::Ok)
-        }
-
-        Command::DropDatabase { name } => {
-            app.drop_database(&name)?;
-            Ok(CommandOutput::Ok)
-        }
-
-        Command::ShowCurrentDatabase => {
-            let name = app.show_current()?;
-            Ok(CommandOutput::Message(name))
-        }
-
+        Command::CreateDatabase { name } => app.create_database(&name),
+        Command::UseDatabase { name } => app.use_database(&name),
+        Command::DropDatabase { name } => app.drop_database(&name),
         Command::ShowDatabases => {
-            let dbs = app.show_databases();
-            Ok(CommandOutput::Message(dbs.join("\n")))
+            for db in app.show_databases() {
+                println!("{}", db);
+            }
+            Ok(())
+        }
+        Command::ShowCurrentDatabase => {
+            println!("{}", app.show_current_database().unwrap_or("none".into()));
+            Ok(())
         }
 
         // ===== TABLE =====
-        Command::CreateTable { name } => {
-            app.with_db_mut(|db| db.create_table(&name))?;
-            // app.create_table(&name)?;
-            Ok(CommandOutput::Ok)
-        }
-
+        Command::CreateTable { name } => app.with_db_mut(|db| db.create_table(&name)),
         Command::DropTable { name } => {
-            // let affected = app.drop_table(&name)?;
-            let affected = app.with_db_mut(|db| db.drop_table(&name))?;
-            Ok(CommandOutput::Affected(affected))
+            app.with_db_mut(|db| db.drop_table(&name))?;
+            Ok(())
         }
-
         Command::ShowTables => {
             let tables = app.with_db(|db| Ok(db.list_tables()))?;
-            Ok(CommandOutput::Message(tables.join("\n")))
+            for t in tables {
+                println!("{}", t);
+            }
+            Ok(())
         }
-
         Command::DescribeTable { table } => {
-            let columns = app.with_db(|db| db.describe_table(&table))?;
+            app.describe(&table)?;
 
-            Ok(CommandOutput::Columns(columns))
+            Ok(())
         }
 
         // ===== COLUMN =====
         Command::AlterTableAddColumn { table, columns } => {
             let cols: Vec<(&str, DataType, &[Constraint])> = columns
                 .iter()
-                .map(|(name, ty, cons)| (name.as_str(), ty.clone(), cons.as_slice()))
+                .map(|(n, dt, c)| (n.as_str(), dt.clone(), c.as_slice()))
                 .collect();
 
             app.with_db_mut(|db| db.add_columns(&table, cols))?;
-            Ok(CommandOutput::Ok)
+            Ok(())
         }
+
         Command::AlterTableDropColumn { table, columns } => {
-            let affected = app.with_db_mut(|db| db.delete_column(&table, columns))?;
-            Ok(CommandOutput::Affected(affected))
+            app.with_db_mut(|db| db.delete_column(&table, columns))?;
+            Ok(())
         }
 
-        // ===== ROW =====
-        Command::InsertRow { table, values } => {
-            let vals: Vec<(&str, Value)> = values
-                .iter()
-                .map(|(k, v)| (k.as_str(), v.clone()))
-                .collect();
-
-            app.with_db_mut(|db| db.insert_row(&table, &vals))?;
-            Ok(CommandOutput::Ok)
+        // ===== Row =====
+        Command::InsertRow {
+            table,
+            columns,
+            rows,
+        } => {
+            app.with_db_mut(|db| db.insert(&table, columns, rows))?;
+            Ok(())
         }
-
         Command::UpdateWhere {
             table,
             assignments,
             conditions,
-        } => {
-            let count = app.with_db_mut(|db| db.update_where(&table, &conditions, &assignments))?;
-
-            Ok(CommandOutput::Affected(count))
-        }
-
-        Command::DeleteWhere { table, conditions } => {
-            let count = app.with_db_mut(|db| db.delete_where(&table, &conditions))?;
-            Ok(CommandOutput::Affected(count))
-        }
+        } => app.with_db_mut(|db| {
+            let updated = db.update_rows(&table, assignments, conditions)?;
+            println!("{} rows updated", updated);
+            Ok(())
+        }),
+        Command::Delete { table, conditions } => app.with_db_mut(|db| {
+            let deleted = db.delete_rows(&table, &conditions)?;
+            println!("{} rows deleted", deleted);
+            Ok(())
+        }),
 
         // ===== SELECT =====
-        Command::SelectAll { table } => {
-            app.select_all(&table)?;
-
-            Ok(CommandOutput::Ok)
-        }
-
-        Command::SelectWhere { table, condition } => {
-            app.select_where(&table, condition)?;
-
-            Ok(CommandOutput::Ok)
-        }
-
+        Command::SelectAll { table } => app.select_all(&table),
+        Command::SelectWhere { table, conditions } => app.select_where(&table, conditions),
         Command::SelectColumns { table, columns } => {
             let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            app.select_columns(&table, &cols)?;
-            Ok(CommandOutput::Ok)
+            app.select_columns(&table, &cols)
         }
-
-        Command::SelectWhereColumns {
+        Command::SelectColumnsWhere {
             table,
-            condition,
             columns,
+            conditions,
         } => {
             let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            app.select_where_columns(&table, condition, &cols)?;
-            Ok(CommandOutput::Ok)
-        }
-
-        // ===== META =====
-        Command::Exit => Ok(CommandOutput::Exit),
+            app.select_where_columns(&table, conditions, &cols)
+        } // ===== BELUM IMPLEMENT =====
+          // _ => Err(AppError::InvalidCommand("not implemented".into())),
     }
 }

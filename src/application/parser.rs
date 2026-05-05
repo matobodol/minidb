@@ -1,542 +1,688 @@
 use crate::{
     application::{AppError, Command},
-    domain::{Condition, Constraint, DataType, Value},
+    domain::{Cmp, Condition, Constraint, DataType, Value},
 };
 
-fn tokenize(input: &str) -> Result<Vec<String>, AppError> {
-    let mut tokens = Vec::new();
-    let mut buf = String::new();
-    let mut paren_depth: i32 = 0;
-    let mut in_string = false;
-
-    let mut chars = input.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        match ch {
-            '"' => {
-                buf.push(ch);
-                in_string = !in_string;
-            }
-
-            '(' if !in_string => {
-                paren_depth += 1;
-                buf.push(ch);
-            }
-
-            ')' if !in_string => {
-                paren_depth -= 1;
-                if paren_depth < 0 {
-                    return Err(AppError::InvalidCommand("unmatched ')'".into()));
-                }
-                buf.push(ch);
-            }
-
-            ' ' if !in_string && paren_depth == 0 => {
-                if !buf.is_empty() {
-                    tokens.push(buf.clone());
-                    buf.clear();
-                }
-            }
-
-            ',' if !in_string && paren_depth == 0 => {
-                if !buf.is_empty() {
-                    tokens.push(buf.clone());
-                    buf.clear();
-                }
-            }
-
-            _ => buf.push(ch),
-        }
+pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
+    if tokens.is_empty() {
+        return Err(AppError::InvalidCommand("empty input".into()));
     }
 
-    if in_string {
-        return Err(AppError::InvalidCommand(
-            "unterminated string literal".into(),
-        ));
-    }
+    // =====================
+    // NORMALISASI COMMAND
+    // =====================
+    let first = normalize_command(&tokens[0]);
 
-    if !buf.is_empty() {
-        tokens.push(buf);
-    }
-
-    Ok(tokens)
-}
-
-pub fn parse_command(input: &str) -> Result<Command, AppError> {
-    let tokens = tokenize(input)?;
-    let refs: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
-
-    match refs.as_slice() {
-        // =========================================================
-        // EXIT / QUIT
-        // =========================================================
-        ["exit"] | ["quit"] | ["/q"] | ["EXIT"] | ["QUIT"] => Ok(Command::Exit),
-
-        // =========================================================
-        // DATABASE
-        //
-        // Contoh:
-        //   create database mydb
-        //   use database mydb
-        //   drop database mydb
-        //   show databases
-        //   show current
-        // =========================================================
-        ["create", "database", name] | ["CREATE", "DATABASE", name] => {
-            Ok(Command::CreateDatabase {
-                name: name.to_string(),
-            })
-        }
-
-        ["use", "database", name] | ["USE", "DATABASE", name] | ["use", name] | ["USE", name] => {
-            Ok(Command::UseDatabase {
-                name: name.to_string(),
-            })
-        }
-
-        ["drop", "database", name] | ["DROP", "DATABASE", name] => Ok(Command::DropDatabase {
-            name: name.to_string(),
-        }),
-
-        ["show", "current"] => Ok(Command::ShowCurrentDatabase),
-
-        ["show", "databases"] => Ok(Command::ShowDatabases),
-
-        // =========================================================
-        //  TABLE
-        //
-        // Contoh:
-        //   create table users
-        //   drop table users
-        //   show tables
-        //   describe users
-        // =========================================================
-        ["create", "table", name] => Ok(Command::CreateTable {
-            name: name.to_string(),
-        }),
-
-        ["drop", "table", name] => Ok(Command::DropTable {
-            name: name.to_string(),
-        }),
-
-        ["show", "tables"] => Ok(Command::ShowTables),
-
-        ["describe", table] | ["desc", table] => Ok(Command::DescribeTable {
-            table: table.to_string(),
-        }),
-
-        // =========================================================
-        // COLUMN
-        //
-        // Contoh:
-        //   alter table users add column name str not null
-        //   alter table users drop column name
-        // =========================================================
-        ["alter", "table", table, "add", "column", rest @ ..] => {
-            parse_alter_add_column(table, rest)
-        }
-        ["alter", "table", table, "drop", "column", rest @ ..] => {
-            parse_alter_drop_column(table, rest)
-        }
-
-        // =========================================================
-        // INSERT ROW
-        //
-        // Contoh:
-        //   insert into users (id,name) values (1,"alice")
-        // =========================================================
-        ["insert", "into", table, cols, "values", vals] => {
-            let columns = parse_list(cols)?;
-            let values = parse_list(vals)?;
-
-            if columns.len() != values.len() {
-                return Err(AppError::InvalidCommand(
-                    "columns and values length mismatch".into(),
-                ));
-            }
-
-            let mut pairs = Vec::new();
-            for (c, v) in columns.into_iter().zip(values.into_iter()) {
-                pairs.push((c, parse_value(&v)?));
-            }
-
-            Ok(Command::InsertRow {
-                table: table.to_string(),
-                values: pairs,
-            })
-        }
-
-        // =========================================================
-        // UPDATE ROW
-        //
-        // Contoh:
-        // update users set age = 21 wherw name = "jono"
-        // =========================================================
-        ["update", table, rest @ ..] => parse_update(table, rest),
-
-        // =========================================================
-        // DELETE ROW
-        //
-        // Contoh:
-        // delete from users where name = "jojon"
-        // =========================================================
-        ["delete", "from", table, "where", ..] => {
-            let condition = parse_condition(&tokens[3..])?;
-            Ok(Command::DeleteWhere {
-                table: table.to_string(),
-                conditions: vec![condition],
-            })
-        }
-
-        // =========================================================
-        // SELECT ALL
-        //
-        // Contoh:
-        //   select * from users
-        // =========================================================
-        ["select", "*", "from", table] => Ok(Command::SelectAll {
-            table: table.to_string(),
-        }),
-
-        // =========================================================
-        // SELECT WITH WHERE
-        //
-        // Contoh:
-        //   select * from users where id = 1
-        //   select * from users where age > 18
-        // =========================================================
-        ["select", "*", "from", table, "where", ..] => {
-            let condition = parse_condition(&tokens[4..])?;
-            Ok(Command::SelectWhere {
-                table: table.to_string(),
-                condition,
-            })
-        }
-
-        // =========================================================
-        // FALLBACK
-        // =========================================================
-        _ => Err(AppError::InvalidCommand(input.to_string())),
+    match first.as_str() {
+        "exit" => Ok(Command::Exit),
+        "select" => parse_select(tokens),
+        "use" => parse_use(tokens),
+        "show" => parse_show(tokens),
+        "create" => parse_create(tokens),
+        "drop" => parse_drop(tokens),
+        "insert" => parse_insert(tokens),
+        "update" => parse_update(tokens),
+        "delete" => parse_delete(tokens),
+        "alter" => parse_alter(tokens),
+        "describe" => parse_describe(tokens),
+        _ => Err(AppError::InvalidCommand("unknown command".into())),
     }
 }
 
-fn parse_update(table: &str, tokens: &[&str]) -> Result<Command, AppError> {
-    // cari posisi "set" dan "where"
-    let set_pos = tokens
-        .iter()
-        .position(|t| *t == "set")
-        .ok_or_else(|| AppError::InvalidCommand("expected SET".into()))?;
+fn normalize_command(cmd: &str) -> String {
+    match cmd.to_lowercase().as_str() {
+        "exit" | "quit" | "/q" | ":q" => "exit".into(),
+        "use" | "use database" => "use".into(),
+        _ => cmd.to_lowercase(),
+    }
+}
 
-    let where_pos = tokens.iter().position(|t| *t == "where");
+fn parse_insert(tokens: Vec<String>) -> Result<Command, AppError> {
+    let mut i = 0;
 
-    let assign_tokens = match where_pos {
-        Some(w) => &tokens[set_pos + 1..w],
-        None => &tokens[set_pos + 1..],
-    };
+    // =====================
+    // INSERT INTO <table>
+    // =====================
+    expect_token(&tokens, &mut i, "insert")?;
+    expect_token(&tokens, &mut i, "into")?;
 
-    let cond_tokens = match where_pos {
-        Some(w) => &tokens[w + 1..],
-        None => &[],
-    };
+    let table = tokens
+        .get(i)
+        .ok_or(AppError::InvalidCommand("missing table".into()))?
+        .clone();
+    i += 1;
 
-    let assignments = parse_assignments(assign_tokens)?;
-    let conditions = if cond_tokens.is_empty() {
-        Vec::new()
+    // =====================
+    // OPTIONAL COLUMN LIST
+    // =====================
+    let columns = if matches!(tokens.get(i).map(|s| s.as_str()), Some("(")) {
+        let (cols, next_i) = parse_column_list(&tokens, i)?;
+        i = next_i;
+        Some(cols)
     } else {
-        parse_conditions(cond_tokens)?
+        None
     };
 
-    Ok(Command::UpdateWhere {
-        table: table.to_string(),
-        assignments,
-        conditions,
-    })
-}
+    // =====================
+    // VALUES
+    // =====================
+    expect_token(&tokens, &mut i, "values")?;
 
-fn parse_assignments(tokens: &[&str]) -> Result<Vec<(String, Value)>, AppError> {
-    let mut result = Vec::new();
-    let mut i = 0;
+    // =====================
+    // MULTI ROW
+    // =====================
+    let rows = parse_multi_values(&tokens[i..])?;
 
-    while i < tokens.len() {
-        if i + 2 >= tokens.len() || tokens[i + 1] != "=" {
-            return Err(AppError::InvalidCommand("invalid assignment".into()));
-        }
-
-        let col = tokens[i].to_string();
-        let val = parse_value(tokens[i + 2])?;
-
-        result.push((col, val));
-        i += 3;
-    }
-
-    if result.is_empty() {
-        return Err(AppError::InvalidCommand("no assignments".into()));
-    }
-
-    Ok(result)
-}
-fn parse_conditions(tokens: &[&str]) -> Result<Vec<Condition>, AppError> {
-    // sementara: satu kondisi
-    if tokens.len() != 3 {
-        return Err(AppError::InvalidCommand("invalid where clause".into()));
-    }
-
-    let col = tokens[0];
-    let op = tokens[1];
-    let val = parse_value(tokens[2])?;
-
-    let cond = match op {
-        "=" => Condition::eq(col, val),
-        ">" => Condition::gt(col, val),
-        "<" => Condition::lt(col, val),
-        _ => return Err(AppError::InvalidCommand(format!("invalid operator {}", op))),
-    };
-
-    Ok(vec![cond])
-}
-
-fn parse_alter_drop_column(table: &str, rest: &[&str]) -> Result<Command, AppError> {
-    if rest.is_empty() {
-        return Err(AppError::InvalidCommand("expected column name".into()));
-    }
-
-    let columns = rest
-        .iter()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-
-    Ok(Command::AlterTableDropColumn {
-        table: table.to_string(),
+    Ok(Command::InsertRow {
+        table,
         columns,
+        rows,
     })
 }
 
-fn parse_alter_add_column(table: &str, tokens: &[&str]) -> Result<Command, AppError> {
-    let mut columns = Vec::new();
-    let mut i = 0;
+fn parse_column_list(tokens: &[String], start: usize) -> Result<(Vec<String>, usize), AppError> {
+    let mut cols = Vec::new();
+    let mut i = start + 1;
 
-    while i < tokens.len() {
-        // minimal: name + type
-        if i + 1 >= tokens.len() {
-            return Err(AppError::InvalidCommand(
-                "column definition incomplete".into(),
-            ));
+    while let Some(t) = tokens.get(i) {
+        if t == ")" {
+            return Ok((cols, i + 1));
         }
 
-        let name = tokens[i];
-        let ty = parse_data_type(tokens[i + 1])?;
+        if t != "," {
+            cols.push(t.clone());
+        }
 
-        i += 2;
+        i += 1;
+    }
 
-        let mut cons = Vec::new();
-        while i < tokens.len() {
-            // stop jika token terlihat seperti awal kolom baru
-            if looks_like_column_start(tokens, i) {
+    Err(AppError::InvalidCommand("unclosed column list".into()))
+}
+
+fn expect_token(tokens: &[String], i: &mut usize, expected: &str) -> Result<(), AppError> {
+    match tokens.get(*i).map(|s| s.as_str()) {
+        Some(t) if t == expected => {
+            *i += 1;
+            Ok(())
+        }
+        _ => Err(AppError::InvalidCommand(format!("expected {}", expected))),
+    }
+}
+
+fn parse_multi_values(tokens: &[String]) -> Result<Vec<Vec<Value>>, AppError> {
+    let mut rows = Vec::new();
+    let mut current = Vec::new();
+    let mut depth = 0;
+
+    for t in tokens {
+        match t.as_str() {
+            "(" => {
+                depth += 1;
+
+                if depth == 1 {
+                    current = Vec::new();
+                }
+            }
+
+            ")" => {
+                if depth == 0 {
+                    return Err(AppError::InvalidCommand("unexpected ')'".into()));
+                }
+
+                depth -= 1;
+
+                if depth == 0 {
+                    if current.is_empty() {
+                        return Err(AppError::InvalidCommand("empty row".into()));
+                    }
+
+                    rows.push(std::mem::take(&mut current)); // 🔥 no clone
+                }
+            }
+
+            "," => {
+                if depth == 1 {
+                    continue; // separator antar value
+                }
+            }
+
+            _ => {
+                if depth >= 1 {
+                    current.push(parse_value(t)?);
+                }
+            }
+        }
+    }
+
+    if depth != 0 {
+        return Err(AppError::InvalidCommand("unbalanced parentheses".into()));
+    }
+
+    if rows.is_empty() {
+        return Err(AppError::InvalidCommand("no values provided".into()));
+    }
+
+    Ok(rows)
+}
+
+fn parse_alter(tokens: Vec<String>) -> Result<Command, AppError> {
+    if tokens.len() < 6 {
+        return Err(AppError::InvalidCommand("invalid alter".into()));
+    }
+
+    if tokens[1] != "table" {
+        return Err(AppError::InvalidCommand("invalid alter".into()));
+    }
+
+    let table = tokens[2].clone();
+
+    match tokens[3].as_str() {
+        "add" => parse_alter_add(table, &tokens[4..]),
+        "drop" => parse_alter_drop(table, &tokens[4..]),
+        _ => Err(AppError::InvalidCommand("invalid alter".into())),
+    }
+}
+
+fn parse_alter_add(table: String, tokens: &[String]) -> Result<Command, AppError> {
+    if tokens.get(0).map(|s| s.as_str()) != Some("column") {
+        return Err(AppError::InvalidCommand("expected 'column'".into()));
+    }
+
+    let raw_columns = &tokens[1..];
+
+    let groups = split_columns(raw_columns);
+
+    let mut columns = Vec::new();
+
+    for g in groups {
+        columns.push(parse_single_column(&g)?);
+    }
+
+    Ok(Command::AlterTableAddColumn { table, columns })
+}
+
+fn parse_alter_drop(table: String, tokens: &[String]) -> Result<Command, AppError> {
+    if tokens.get(0).map(|s| s.as_str()) != Some("column") {
+        return Err(AppError::InvalidCommand("expected 'column'".into()));
+    }
+
+    let columns = parse_columns(&tokens[1..])?;
+
+    Ok(Command::AlterTableDropColumn { table, columns })
+}
+
+fn split_columns(tokens: &[String]) -> Vec<Vec<String>> {
+    let mut result = Vec::new();
+    let mut current = Vec::new();
+    let mut paren_level = 0;
+
+    for t in tokens {
+        match t.as_str() {
+            "(" => {
+                paren_level += 1;
+                current.push(t.clone());
+            }
+            ")" => {
+                paren_level -= 1;
+                current.push(t.clone());
+            }
+            "," if paren_level == 0 => {
+                if !current.is_empty() {
+                    result.push(current);
+                    current = Vec::new();
+                }
+            }
+            _ => current.push(t.clone()),
+        }
+    }
+
+    if !current.is_empty() {
+        result.push(current);
+    }
+
+    result
+}
+
+fn parse_single_column(tokens: &[String]) -> Result<(String, DataType, Vec<Constraint>), AppError> {
+    let mut i = 0;
+
+    let name = tokens[i].clone();
+    i += 1;
+
+    // =====================
+    // DATATYPE
+    // =====================
+    let dtype = if tokens[i] == "enum" {
+        i += 1;
+
+        if tokens.get(i).map(|s| s.as_str()) != Some("(") {
+            return Err(AppError::InvalidCommand("expected '(' after enum".into()));
+        }
+
+        i += 1;
+
+        let mut variants = Vec::new();
+
+        while let Some(t) = tokens.get(i) {
+            if t == ")" {
+                i += 1; // 🔥 INI WAJIB (skip ')')
                 break;
             }
-            cons.push(tokens[i]);
+
+            if t != "," {
+                variants.push(t.clone());
+            }
+
             i += 1;
         }
 
-        let constraints = parse_constraints(&cons)?;
-        columns.push((name.to_string(), ty, constraints));
-    }
-
-    Ok(Command::AlterTableAddColumn {
-        table: table.to_string(),
-        columns,
-    })
-}
-fn looks_like_column_start(tokens: &[&str], i: usize) -> bool {
-    i + 1 < tokens.len() && matches!(tokens[i + 1], "int" | "str" | "float")
-}
-
-// ===========
-
-fn parse_data_type(token: &str) -> Result<DataType, AppError> {
-    match token {
-        "int" => Ok(DataType::Int),
-        "str" => Ok(DataType::Str),
-        "float" => Ok(DataType::Float),
-        _ if token.starts_with("enum") => parse_enum_type(token),
-        _ => Err(AppError::InvalidCommand(format!(
-            "unknown data type: {}",
-            token
-        ))),
-    }
-}
-fn parse_enum_type(token: &str) -> Result<DataType, AppError> {
-    let raw = token
-        .strip_prefix("enum")
-        .ok_or_else(|| AppError::InvalidCommand("invalid enum type".into()))?;
-
-    let variants = parse_list(raw)?;
-
-    if variants.is_empty() {
-        return Err(AppError::InvalidCommand(
-            "enum must have at least one variant".into(),
-        ));
-    }
-
-    Ok(DataType::Enum { variants })
-}
-
-fn parse_condition(tokens: &[String]) -> Result<Condition, AppError> {
-    // WHERE col op value
-    if tokens.len() != 4 || tokens[0] != "where" {
-        return Err(AppError::InvalidCommand("invalid where clause".into()));
-    }
-
-    let column = &tokens[1];
-    let op = &tokens[2];
-    let raw_value = &tokens[3];
-
-    let value = parse_value(raw_value)?;
-
-    let condition = match op.as_str() {
-        "=" => Condition::eq(column, value),
-        "<" => Condition::lt(column, value),
-        ">" => Condition::gt(column, value),
-        _ => {
-            return Err(AppError::InvalidCommand(format!(
-                "invalid operator: {}",
-                op
-            )));
-        }
+        DataType::enum_of(variants)
+    } else {
+        let dt = parse_datatype(tokens.get(i))?;
+        i += 1;
+        dt
     };
 
-    Ok(condition)
-}
-
-fn parse_list(raw: &str) -> Result<Vec<String>, AppError> {
-    if !raw.starts_with('(') || !raw.ends_with(')') {
-        return Err(AppError::InvalidCommand(
-            "expected parenthesized list".into(),
-        ));
-    }
-
-    let inner = &raw[1..raw.len() - 1];
-
-    Ok(inner
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect())
-}
-
-fn parse_value(token: &str) -> Result<Value, AppError> {
-    // string literal
-    if token.starts_with('"') && token.ends_with('"') {
-        let inner = &token[1..token.len() - 1];
-        return Ok(Value::Str(inner.to_string()));
-    }
-
-    // int
-    if let Ok(n) = token.parse::<i64>() {
-        return Ok(Value::Int(n));
-    }
-
-    // float
-    if let Ok(f) = token.parse::<f64>() {
-        return Ok(Value::Float(f));
-    }
-
-    // null bukan tipe untuk input
-    // // null / absen
-    // if token == "null" {
-    //     return Ok(Value::Absen(true));
-    // }
-
-    // Handle enum("value") atau enum(value)
-    if token.starts_with("enum(") && token.ends_with(')') {
-        let inner = &token[5..token.len() - 1];
-        // Opsional: bersihkan tanda kutip jika di dalam enum ada kutip, misal enum("lulus")
-        let clean_inner = inner.trim_matches('"');
-
-        if is_valid_identifier(clean_inner) {
-            return Ok(Value::Enum {
-                value: clean_inner.to_string(),
-            });
-        }
-    }
-
-    // enum literal (identifier)
-    if is_valid_identifier(token) {
-        return Ok(Value::Enum {
-            value: token.to_string(),
-        });
-    }
-
-    Err(AppError::InvalidCommand(format!(
-        "invalid value: {}",
-        token
-    )))
-}
-
-fn is_valid_identifier(s: &str) -> bool {
-    let mut chars = s.chars();
-    match chars.next() {
-        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
-        _ => return false,
-    }
-
-    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
-}
-
-fn parse_constraints(tokens: &[&str]) -> Result<Vec<Constraint>, AppError> {
+    // =====================
+    // CONSTRAINT
+    // =====================
     let mut constraints = Vec::new();
-    let mut i = 0;
 
-    while i < tokens.len() {
-        match tokens[i] {
-            "not" => {
-                let next = tokens.get(i + 1);
-                if next != Some(&"null") {
-                    return Err(AppError::InvalidCommand("expected `not null`".into()));
-                }
-
-                constraints.push(Constraint::NotNull);
-                i += 2;
-            }
-
-            "null" => {
-                constraints.push(Constraint::Nullable);
+    while let Some(t) = tokens.get(i) {
+        match t.as_str() {
+            "unique" => {
+                constraints.push(Constraint::Unique);
                 i += 1;
             }
 
-            // "unique" | "uniq" => {
-            //     constraints.push(Constraint::Unique);
-            //     i += 1;
-            // }
-            "primary" => {
-                let next = tokens.get(i + 1);
-                if next != Some(&"key") {
-                    return Err(AppError::InvalidCommand("expected `primary key`".into()));
-                }
-
-                constraints.push(Constraint::Unique);
-                i += 2;
+            "notnull" => {
+                constraints.push(Constraint::NotNull);
+                i += 1;
             }
 
             "default" => {
-                let next = tokens.get(i + 1).ok_or_else(|| {
-                    AppError::InvalidCommand("expected value after `default`".into())
-                })?;
+                let val_token = tokens
+                    .get(i + 1)
+                    .ok_or(AppError::InvalidCommand("missing default value".into()))?;
 
-                let value = parse_value(next)?;
-                constraints.push(Constraint::Default(value));
+                let raw = parse_value(val_token)?;
+                let coerced = dtype
+                    .coerce_value(raw)
+                    .map_err(|_| AppError::InvalidCommand("invalid default value".into()))?;
+
+                constraints.push(Constraint::Default(coerced));
                 i += 2;
             }
 
-            other => {
+            "primarykey" => {
+                constraints.push(Constraint::PrimaryKey);
+                i += 1;
+            }
+
+            "increment" => {
+                constraints.push(Constraint::Increment);
+                i += 1;
+            }
+
+            _ => {
                 return Err(AppError::InvalidCommand(format!(
                     "unknown constraint: {}",
-                    other
+                    t
                 )));
             }
         }
     }
 
-    Ok(constraints)
+    Ok((name, dtype, constraints))
+}
+
+fn parse_datatype(token: Option<&String>) -> Result<DataType, AppError> {
+    let t = token.ok_or(AppError::InvalidCommand("missing datatype".into()))?;
+
+    match t.to_lowercase().as_str() {
+        "int" => Ok(DataType::Int),
+        "float" => Ok(DataType::Float),
+        "string" | "str" => Ok(DataType::Str),
+        _ => Err(AppError::InvalidCommand(format!("unknown datatype {}", t))),
+    }
+}
+
+fn parse_select(tokens: Vec<String>) -> Result<Command, AppError> {
+    let from_pos = tokens
+        .iter()
+        .position(|t| t == "from")
+        .ok_or(AppError::InvalidCommand("missing from".into()))?;
+
+    if from_pos < 2 {
+        return Err(AppError::InvalidCommand("invalid select".into()));
+    }
+
+    let table = tokens
+        .get(from_pos + 1)
+        .ok_or(AppError::InvalidCommand("missing table".into()))?
+        .clone();
+
+    // =====================
+    // HANDLE "*"
+    // =====================
+    if tokens[1] == "*" {
+        if tokens.len() > from_pos + 2 && tokens[from_pos + 2] == "where" {
+            let conditions = parse_conditions(&tokens[from_pos + 3..])?;
+
+            return Ok(Command::SelectWhere { table, conditions });
+        }
+
+        return Ok(Command::SelectAll { table });
+    }
+
+    // =====================
+    // COLUMNS
+    // =====================
+    let columns = parse_columns(&tokens[1..from_pos])?;
+
+    // =====================
+    // WHERE
+    // =====================
+    if tokens.len() > from_pos + 2 && tokens[from_pos + 2] == "where" {
+        let conditions = parse_conditions(&tokens[from_pos + 3..])?;
+
+        return Ok(Command::SelectColumnsWhere {
+            table,
+            columns,
+            conditions,
+        });
+    }
+
+    // =====================
+    // TANPA WHERE
+    // =====================
+    Ok(Command::SelectColumns { table, columns })
+}
+
+fn parse_columns(tokens: &[String]) -> Result<Vec<String>, AppError> {
+    let mut cols = Vec::new();
+    let mut expect_col = true;
+
+    for t in tokens {
+        if t == "," {
+            if expect_col {
+                return Err(AppError::InvalidCommand("invalid column list".into()));
+            }
+            expect_col = true;
+            continue;
+        }
+
+        if !expect_col {
+            return Err(AppError::InvalidCommand("invalid column list".into()));
+        }
+
+        cols.push(t.clone());
+        expect_col = false;
+    }
+
+    // kalau terakhir koma → error
+    if expect_col {
+        return Err(AppError::InvalidCommand("invalid column list".into()));
+    }
+
+    Ok(cols)
+}
+
+fn parse_conditions(tokens: &[String]) -> Result<Vec<Condition>, AppError> {
+    let mut conditions = Vec::new();
+    let mut i = 0;
+
+    while i < tokens.len() {
+        let column = tokens[i].clone();
+
+        // =====================
+        // IS NULL / IS NOT NULL
+        // =====================
+        if tokens.get(i + 1).map(|s| s.as_str()) == Some("is") {
+            match tokens.get(i + 2).map(|s| s.as_str()) {
+                Some("null") => {
+                    conditions.push(Condition::new(column, Cmp::IsNull, None));
+                    i += 3;
+                }
+                Some("not") => {
+                    if tokens.get(i + 3).map(|s| s.as_str()) == Some("null") {
+                        conditions.push(Condition::new(column, Cmp::IsNotNull, None));
+                        i += 4;
+                    } else {
+                        return Err(AppError::InvalidCommand("expected NULL".into()));
+                    }
+                }
+                _ => {
+                    return Err(AppError::InvalidCommand("expected NULL".into()));
+                }
+            }
+        }
+        // =====================
+        // NORMAL OPERATOR
+        // =====================
+        else {
+            if i + 2 >= tokens.len() {
+                return Err(AppError::InvalidCommand("invalid where clause".into()));
+            }
+
+            let op = tokens[i + 1].as_str();
+            let value_token = &tokens[i + 2];
+
+            let cmp = match op {
+                "=" => Cmp::Eq,
+                "!=" => Cmp::Ne,
+                "<" => Cmp::Lt,
+                ">" => Cmp::Gt,
+                "<=" => Cmp::Lte,
+                ">=" => Cmp::Gte,
+                _ => return Err(AppError::InvalidCommand("invalid operator".into())),
+            };
+
+            let value = parse_value(value_token)?;
+
+            conditions.push(Condition::new(column, cmp, Some(value)));
+            i += 3;
+        }
+
+        // =====================
+        // HANDLE AND
+        // =====================
+        if i < tokens.len() {
+            if tokens[i] != "and" {
+                return Err(AppError::InvalidCommand("expected AND".into()));
+            }
+            i += 1;
+        }
+    }
+
+    Ok(conditions)
+}
+
+fn parse_value(token: &str) -> Result<Value, AppError> {
+    if let Ok(v) = token.parse::<i64>() {
+        return Ok(Value::Int(v));
+    }
+
+    if let Ok(v) = token.parse::<f64>() {
+        return Ok(Value::Float(v));
+    }
+
+    if token.eq_ignore_ascii_case("null") {
+        return Ok(Value::Null);
+    }
+
+    if token.starts_with('"') && token.ends_with('"') {
+        return Ok(Value::Str(token.trim_matches('"').to_string()));
+    }
+
+    // fallback
+    Ok(Value::Str(token.to_string()))
+}
+
+// use fill
+fn parse_use(tokens: Vec<String>) -> Result<Command, AppError> {
+    if tokens.len() < 1 {
+        return Err(AppError::InvalidCommand("invalid use".into()));
+    } else if tokens.len() == 2 {
+        let db = tokens[1].clone();
+        Ok(Command::UseDatabase { name: db })
+    } else {
+        let db = tokens[2].clone();
+        Ok(Command::UseDatabase { name: db })
+    }
+}
+
+// show databases
+// show tables
+// show current database
+fn parse_show(tokens: Vec<String>) -> Result<Command, AppError> {
+    let t: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
+    match t.as_slice() {
+        ["show", "databases"] => Ok(Command::ShowDatabases),
+        ["show", "tables"] => Ok(Command::ShowTables),
+        ["show", "current", "database"] => Ok(Command::ShowCurrentDatabase),
+        _ => Err(AppError::InvalidCommand("invalid show".into())),
+    }
+}
+
+// create database mydb
+fn parse_create(tokens: Vec<String>) -> Result<Command, AppError> {
+    if tokens.len() < 3 {
+        return Err(AppError::InvalidCommand("invalid create".into()));
+    }
+
+    match tokens[1].as_str() {
+        "table" => Ok(Command::CreateTable {
+            name: tokens[2].clone(),
+        }),
+        "database" => Ok(Command::CreateDatabase {
+            name: tokens[2].clone(),
+        }),
+        _ => Err(AppError::InvalidCommand("invalid create".into())),
+    }
+}
+
+fn parse_drop(tokens: Vec<String>) -> Result<Command, AppError> {
+    if tokens.len() < 3 {
+        return Err(AppError::InvalidCommand("invalid drop".into()));
+    }
+
+    match tokens[1].as_str() {
+        "table" => Ok(Command::DropTable {
+            name: tokens[2].clone(),
+        }),
+        "database" => Ok(Command::DropDatabase {
+            name: tokens[2].clone(),
+        }),
+        _ => Err(AppError::InvalidCommand("invalid drop".into())),
+    }
+}
+
+// describe <table>
+fn parse_describe(tokens: Vec<String>) -> Result<Command, AppError> {
+    if tokens.len() != 2 {
+        return Err(AppError::InvalidCommand("invalid describe".into()));
+    }
+
+    Ok(Command::DescribeTable {
+        table: tokens[1].clone(),
+    })
+}
+
+// delete from rdb where id = 1
+fn parse_delete(tokens: Vec<String>) -> Result<Command, AppError> {
+    if tokens.len() < 3 || tokens[1] != "from" {
+        return Err(AppError::InvalidCommand("invalid delete".into()));
+    }
+
+    let table = tokens[2].clone();
+
+    // TANPA WHERE → delete all
+    if tokens.len() == 3 {
+        return Ok(Command::Delete {
+            table,
+            conditions: Vec::new(),
+        });
+    }
+
+    // ADA TOKEN LANJUTAN → HARUS WHERE
+    if tokens[3] != "where" {
+        return Err(AppError::InvalidCommand("expected WHERE".into()));
+    }
+
+    let conditions = parse_conditions(&tokens[4..])?;
+
+    Ok(Command::Delete { table, conditions })
+}
+
+// UPDATE users SET name = jono WHERE id = 1
+// UPDATE users SET name = jono, status = aktif WHERE id = 1
+// UPDATE users SET name = jono
+fn parse_update(tokens: Vec<String>) -> Result<Command, AppError> {
+    if tokens.len() < 4 {
+        return Err(AppError::InvalidCommand("invalid update".into()));
+    }
+
+    let table = tokens[1].clone();
+
+    if tokens[2] != "set" {
+        return Err(AppError::InvalidCommand("expected SET".into()));
+    }
+
+    // =====================
+    // CARI WHERE (OPTIONAL)
+    // =====================
+    let where_pos = tokens.iter().position(|t| t == "where");
+
+    let end_assign = where_pos.unwrap_or(tokens.len());
+
+    // =====================
+    // PARSE ASSIGNMENTS
+    // =====================
+    let mut assignments = Vec::new();
+    let mut i = 3;
+
+    while i < end_assign {
+        let col = tokens
+            .get(i)
+            .ok_or(AppError::InvalidCommand("invalid assignment".into()))?;
+
+        let eq = tokens
+            .get(i + 1)
+            .ok_or(AppError::InvalidCommand("invalid assignment".into()))?;
+
+        let val = tokens
+            .get(i + 2)
+            .ok_or(AppError::InvalidCommand("invalid assignment".into()))?;
+
+        if eq != "=" {
+            return Err(AppError::InvalidCommand("expected '='".into()));
+        }
+
+        assignments.push((col.clone(), parse_value(val)?));
+
+        i += 3;
+
+        // skip comma kalau ada
+        if let Some(t) = tokens.get(i) {
+            if t == "," {
+                i += 1;
+            }
+        }
+    }
+
+    // =====================
+    // PARSE CONDITIONS (OPTIONAL)
+    // =====================
+    let conditions = if let Some(pos) = where_pos {
+        parse_conditions(&tokens[pos + 1..])?
+    } else {
+        Vec::new()
+    };
+
+    Ok(Command::UpdateWhere {
+        table,
+        assignments,
+        conditions,
+    })
 }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{ResolvedCondition, Value};
+use crate::domain::{Cmp, ResolvedCondition, Value};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Row {
@@ -24,11 +24,15 @@ impl Row {
         &self.values
     }
 
-    pub(crate) fn replace(&mut self, index: usize, value: Value) {
-        if let Some(slot) = self.values.get_mut(index) {
-            *slot = value;
-        }
-    }
+    // pub(crate) fn replace(&mut self, index: usize, value: Value) {
+    //     if let Some(slot) = self.values.get_mut(index) {
+    //         *slot = value;
+    //     }
+    // }
+    //
+    // pub(crate) fn get(&self, index: usize) -> Option<&Value> {
+    //     self.values.get(index)
+    // }
 }
 
 impl Row {
@@ -38,6 +42,18 @@ impl Row {
             return false;
         };
 
-        selected.compare(&cond.cmp, &cond.value)
+        match cond.cmp {
+            Cmp::IsNull => matches!(selected, Value::Null),
+
+            Cmp::IsNotNull => !matches!(selected, Value::Null),
+
+            _ => {
+                let Some(val) = cond.value.as_ref() else {
+                    return false; // defensive
+                };
+
+                selected.compare(&cond.cmp, val)
+            }
+        }
     }
 }

@@ -4,10 +4,11 @@ use crate::domain::{Cmp, Value};
 pub struct ResolvedCondition {
     pub index: usize,
     pub cmp: Cmp,
-    pub value: Value,
+    pub value: Option<Value>, // 🔥 penting
 }
+
 impl ResolvedCondition {
-    pub fn eq(index: usize, value: Value) -> Self {
+    pub fn eq(index: usize, value: Option<Value>) -> Self {
         Self {
             index,
             cmp: Cmp::Eq,
@@ -19,30 +20,10 @@ impl ResolvedCondition {
 pub struct Condition {
     pub column: String,
     pub cmp: Cmp,
-    pub value: Value,
+    pub value: Option<Value>,
 }
 impl Condition {
-    pub fn eq(column: &str, value: Value) -> Self {
-        Self {
-            column: column.to_string(),
-            cmp: Cmp::Eq,
-            value,
-        }
-    }
-
-    pub fn lt(column: &str, value: Value) -> Self {
-        Self {
-            column: column.to_string(),
-            cmp: Cmp::Lt,
-            value,
-        }
-    }
-
-    pub fn gt(column: &str, value: Value) -> Self {
-        Self {
-            column: column.to_string(),
-            cmp: Cmp::Gt,
-            value,
-        }
+    pub fn new(column: String, cmp: Cmp, value: Option<Value>) -> Self {
+        Self { column, cmp, value }
     }
 }

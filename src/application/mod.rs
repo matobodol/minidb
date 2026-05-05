@@ -15,3 +15,6 @@ pub use parser::*;
 
 pub mod repl;
 pub use repl::*;
+
+pub mod display;
+pub use display::*;

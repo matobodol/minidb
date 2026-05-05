@@ -1,4 +1,8 @@
+use std::collections::HashSet;
+
 use serde::{Deserialize, Serialize};
+
+use crate::domain::DomainError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DataType {
@@ -6,20 +10,68 @@ pub enum DataType {
     Str,
     Float,
     // Date,
-    Enum { variants: Vec<String> },
+    Enum { variants: HashSet<String> },
 }
 impl DataType {
-    pub fn matches(&self, value: &Value) -> bool {
+    pub fn matches_type(&self, value: &Value) -> bool {
+        self.coerce_value(value.clone()).is_ok()
+    }
+    pub fn enum_of(values: Vec<String>) -> Self {
+        if values.is_empty() {
+            panic!("Enum must not be empty");
+        }
+
+        if values.iter().any(|v| v.trim().is_empty()) {
+            panic!("Enum variants cannot be empty");
+        }
+
+        let set: HashSet<_> = values.into_iter().collect();
+
+        Self::Enum { variants: set }
+    }
+
+    pub fn coerce_value(&self, value: Value) -> Result<Value, DomainError> {
         match (self, value) {
-            (DataType::Int, Value::Int(_)) => true,
-            (DataType::Str, Value::Str(_)) => true,
-            (DataType::Float, Value::Float(_)) => true,
-            (DataType::Enum { variants: allowed }, Value::Enum { value: val }) => {
-                allowed.contains(val)
+            // INT
+            (DataType::Int, Value::Int(v)) => Ok(Value::Int(v)),
+
+            (DataType::Int, Value::Str(s)) => s
+                .parse::<i64>()
+                .map(Value::Int)
+                .map_err(|_| DomainError::TypeMismatch),
+
+            // FLOAT
+            (DataType::Float, Value::Float(v)) => Ok(Value::Float(v)),
+
+            (DataType::Float, Value::Str(s)) => s
+                .parse::<f64>()
+                .map(Value::Float)
+                .map_err(|_| DomainError::TypeMismatch),
+
+            // STRING
+            (DataType::Str, Value::Str(s)) => Ok(Value::Str(s)),
+
+            // ENUM
+            (DataType::Enum { variants }, Value::Str(s)) => {
+                if variants.contains(&s) {
+                    Ok(Value::Enum { value: s })
+                } else {
+                    Err(DomainError::InvalidDefaultType)
+                }
             }
-            (_, Value::Absen(true)) => true,
-            (_, Value::Absen(false)) => false,
-            _ => false,
+
+            (DataType::Enum { variants }, Value::Enum { value }) => {
+                if variants.contains(&value) {
+                    Ok(Value::Enum { value })
+                } else {
+                    Err(DomainError::InvalidDefaultType)
+                }
+            }
+
+            // NULL
+            (_, Value::Null) => Ok(Value::Null),
+
+            _ => Err(DomainError::TypeMismatch),
         }
     }
 }
@@ -32,45 +84,78 @@ pub enum Value {
     Enum { value: String },
 
     // Date(chrono::NaiveDate),
-    /* saya ragu menggunakan crate luar pada angine.
-    bukan karena crate ini jelek justru sebaliknya powerfull.
-    alasannya hanya menghindari engine menjadi kebergantungan dengan ekosistem eksternal
-
-    goal: logika Value::Date("YYYY-MM-HH") harus lahir dari dalam engine.
-    Value::Date akan release ketika otak saya memandang String manipulation sudah tidak rumit.
-    */
-    Absen(bool),
-    /* reperesentasi absen input. yah ini memang tidak jujur.
-    INFO: saat ini Value::Absen hanya lahir dari add column dan constrain null.
-    ini bukan data asli.
-    terpaksa di hadirkan karena belum nemu alternatifnya.
-    sebagai pengisi panjang kolom dan baris tetap relasi
-    kemungkinan solusinya akan ditemukan pada saat membangun constraint.
-    */
+    Null,
 }
+
 impl Value {
-    pub fn compare(&self, op: &Cmp, to_cmp: &Value) -> bool {
-        match (op, self, to_cmp) {
-            (Cmp::Eq, Value::Absen(true), Value::Absen(true)) => true, //menghasilkan true masih dalam pertimbangan
-            (Cmp::Eq, Value::Int(a), Value::Int(b)) => a == b,
-            (Cmp::Eq, Value::Str(a), Value::Str(b)) => a == b,
-            (Cmp::Eq, Value::Float(a), Value::Float(b)) => a == b,
-            (Cmp::Eq, Value::Enum { value: a }, Value::Enum { value: b }) => a == b,
-            (Cmp::Gt, Value::Int(a), Value::Int(b)) => a > b,
-            (Cmp::Lt, Value::Int(a), Value::Int(b)) => a < b,
+    pub fn compare(&self, op: &Cmp, other: &Value) -> bool {
+        if matches!(self, Value::Null) || matches!(other, Value::Null) {
+            return false;
+        }
+
+        match op {
+            Cmp::Eq => self.eq(other),
+            Cmp::Ne => !self.eq(other),
+            Cmp::Lt => self.lt(other),
+            Cmp::Gt => self.gt(other),
+            Cmp::Lte => self.le(other),
+            Cmp::Gte => self.ge(other),
+            Cmp::IsNull => matches!(other, Value::Null),
+            Cmp::IsNotNull => !matches!(other, Value::Null),
+        }
+    }
+
+    fn eq(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Int(a), Value::Int(b)) => a == b,
+            (Value::Str(a), Value::Str(b)) => a == b,
+            (Value::Float(a), Value::Float(b)) => a == b,
+            (Value::Enum { value: a }, Value::Enum { value: b }) => a == b,
+            _ => false,
+        }
+    }
+
+    fn lt(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Int(a), Value::Int(b)) => a < b,
+            (Value::Float(a), Value::Float(b)) => a < b,
+            _ => false,
+        }
+    }
+
+    fn gt(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Int(a), Value::Int(b)) => a > b,
+            (Value::Float(a), Value::Float(b)) => a > b,
+            _ => false,
+        }
+    }
+
+    fn le(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Int(a), Value::Int(b)) => a <= b,
+            (Value::Float(a), Value::Float(b)) => a <= b,
+            _ => false,
+        }
+    }
+
+    fn ge(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Int(a), Value::Int(b)) => a >= b,
+            (Value::Float(a), Value::Float(b)) => a >= b,
             _ => false,
         }
     }
 }
 
 impl Value {
-    pub(crate) fn to_str(&self) -> String {
+    pub(crate) fn to_display_str(&self) -> String {
         match self {
             Value::Int(v) => v.to_string(),
             Value::Str(v) => v.clone(),
             Value::Float(v) => v.to_string(),
             Value::Enum { value } => value.clone(),
-            Value::Absen(_) => "-".to_string(),
+            Value::Null => "-".to_string(),
         }
     }
 }
@@ -78,6 +163,11 @@ impl Value {
 #[derive(Debug, Clone)]
 pub enum Cmp {
     Eq,
+    Ne,
     Lt,
     Gt,
+    Lte,
+    Gte,
+    IsNull,
+    IsNotNull,
 }
