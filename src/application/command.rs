@@ -4,6 +4,7 @@ use crate::domain::{Condition, Constraint, DataType, Value};
 pub enum Command {
     // ===== REPL =====
     Exit,
+    Help,
 
     // ===== DATABASE =====
     ShowDatabases,
@@ -83,5 +84,8 @@ pub enum Command {
 impl Command {
     pub fn is_exit(&self) -> bool {
         matches!(self, Command::Exit)
+    }
+    pub fn is_help(&self) -> bool {
+        matches!(self, Command::Help)
     }
 }

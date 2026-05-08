@@ -8,6 +8,7 @@ pub fn execute<S: DatabaseStorage>(cmd: Command, app: &mut AppManager<S>) -> Res
     match cmd {
         // ===== REPL =====
         Command::Exit => Ok(()),
+        Command::Help => Ok(()),
 
         // ===== DATABASE =====
         Command::CreateDatabase { name } => app.create_database(&name),

@@ -98,11 +98,43 @@
               "Str": "Teknik mesin Berat"
             }
           ]
+        },
+        {
+          "values": [
+            {
+              "Int": 1
+            },
+            {
+              "Str": "joni"
+            },
+            {
+              "Enum": {
+                "value": "lulus"
+              }
+            },
+            "Null"
+          ]
+        },
+        {
+          "values": [
+            {
+              "Int": 5
+            },
+            {
+              "Str": "jeni"
+            },
+            {
+              "Enum": {
+                "value": "lulus"
+              }
+            },
+            "Null"
+          ]
         }
       ],
       "meta": {
         "increments": {
-          "id": 5
+          "id": 6
         }
       }
     }

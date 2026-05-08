@@ -15,6 +15,7 @@ pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
 
     match first.as_str() {
         "exit" => Ok(Command::Exit),
+        "help" => Ok(Command::Help),
         "select" => parse_select(tokens),
         "use" => parse_use(tokens),
         "show" => parse_show(tokens),
