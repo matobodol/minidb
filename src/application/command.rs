@@ -5,6 +5,10 @@ pub enum Command {
     // ===== REPL =====
     Exit,
     Help,
+    DebugDatabase,
+    DebugTable {
+        name: String,
+    },
 
     // ===== DATABASE =====
     ShowDatabases,

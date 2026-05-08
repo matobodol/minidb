@@ -18,6 +18,15 @@ impl Database {
 }
 
 impl Database {
+    pub fn debug(&self) -> Result<(), DomainError> {
+        println!("{:#?}", self);
+        Ok(())
+    }
+    pub fn debug_table(&self, name: &str) -> Result<(), DomainError> {
+        let tbl = self.table(name)?;
+        println!("{:#?}", tbl);
+        Ok(())
+    }
     pub fn create_table(&mut self, name: &str) -> Result<(), DomainError> {
         if self.tables.contains_key(name) {
             return Err(DomainError::DuplicateTableName);

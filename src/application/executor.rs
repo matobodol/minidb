@@ -9,6 +9,8 @@ pub fn execute<S: DatabaseStorage>(cmd: Command, app: &mut AppManager<S>) -> Res
         // ===== REPL =====
         Command::Exit => Ok(()),
         Command::Help => Ok(()),
+        Command::DebugDatabase => app.with_db(|db| db.debug()),
+        Command::DebugTable { name } => app.with_db(|db| db.debug_table(&name)),
 
         // ===== DATABASE =====
         Command::CreateDatabase { name } => app.create_database(&name),

@@ -22,8 +22,8 @@
             "data_type": {
               "Enum": {
                 "variants": [
-                  "gagal",
-                  "lulus"
+                  "lulus",
+                  "gagal"
                 ]
               }
             },
@@ -40,6 +40,18 @@
           {
             "name": "jurusan",
             "data_type": "Str",
+            "constraint": []
+          },
+          {
+            "name": "gender",
+            "data_type": {
+              "Enum": {
+                "variants": [
+                  "P",
+                  "L"
+                ]
+              }
+            },
             "constraint": []
           }
         ]
@@ -60,6 +72,11 @@
             },
             {
               "Str": "Telekomunikasi dan informasi"
+            },
+            {
+              "Enum": {
+                "value": "P"
+              }
             }
           ]
         },
@@ -78,6 +95,11 @@
             },
             {
               "Str": "Tata boga"
+            },
+            {
+              "Enum": {
+                "value": "P"
+              }
             }
           ]
         },
@@ -96,6 +118,11 @@
             },
             {
               "Str": "Teknik mesin Berat"
+            },
+            {
+              "Enum": {
+                "value": "L"
+              }
             }
           ]
         },
@@ -105,14 +132,21 @@
               "Int": 1
             },
             {
-              "Str": "joni"
+              "Str": "jeni"
             },
             {
               "Enum": {
                 "value": "lulus"
               }
             },
-            "Null"
+            {
+              "Str": "Kesenian dan budaya"
+            },
+            {
+              "Enum": {
+                "value": "P"
+              }
+            }
           ]
         },
         {
@@ -121,14 +155,21 @@
               "Int": 5
             },
             {
-              "Str": "jeni"
+              "Str": "joni"
             },
             {
               "Enum": {
                 "value": "lulus"
               }
             },
-            "Null"
+            {
+              "Str": "Rekayasa perangkat lunak"
+            },
+            {
+              "Enum": {
+                "value": "L"
+              }
+            }
           ]
         }
       ],

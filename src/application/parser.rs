@@ -16,6 +16,7 @@ pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
     match first.as_str() {
         "exit" => Ok(Command::Exit),
         "help" => Ok(Command::Help),
+        "debug" => parse_debug(tokens),
         "select" => parse_select(tokens),
         "use" => parse_use(tokens),
         "show" => parse_show(tokens),
@@ -27,6 +28,17 @@ pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
         "alter" => parse_alter(tokens),
         "describe" => parse_describe(tokens),
         _ => Err(AppError::InvalidCommand("unknown command".into())),
+    }
+}
+
+fn parse_debug(tokens: Vec<String>) -> Result<Command, AppError> {
+    let t: Vec<&str> = tokens.iter().map(|s| s.as_str()).collect();
+    match t.as_slice() {
+        ["debug", "database"] => Ok(Command::DebugDatabase),
+        ["debug", "table", name] => Ok(Command::DebugTable {
+            name: name.to_string(),
+        }),
+        _ => Err(AppError::InvalidCommand("Not database selected".into())),
     }
 }
 
