@@ -1,7 +1,6 @@
 use crate::{
     application::{
         app_error::AppError, map_domain_error, map_storage_error, print_describe, print_select,
-        print_select_column,
     },
     domain::{Condition, Database, DomainError},
     storage::DatabaseStorage,
@@ -49,17 +48,13 @@ impl<S: DatabaseStorage> AppManager<S> {
     }
 }
 
-// LIFECYVLE
+// LIFECYCLE
 impl<S: DatabaseStorage> AppManager<S> {
     fn unload_current(&mut self) -> Result<(), AppError> {
         if let Some(name) = self.current.take() {
             self.unload(&name)?;
         }
         Ok(())
-    }
-
-    pub fn current_db(&self) -> Option<&str> {
-        self.current.as_deref()
     }
 
     pub fn create_database(&mut self, name: &str) -> Result<(), AppError> {
@@ -175,8 +170,9 @@ impl<S: DatabaseStorage> AppManager<S> {
 
     pub fn select_columns(&self, table: &str, columns: &[&str]) -> Result<(), AppError> {
         let rows = self.with_db(|tbl| tbl.select_columns(table, columns))?;
+        let columns = self.with_db(|tbl| tbl.columns_selected(table, columns))?;
 
-        print_select_column(columns, rows);
+        print_select(columns, rows);
         Ok(())
     }
 
@@ -188,8 +184,9 @@ impl<S: DatabaseStorage> AppManager<S> {
     ) -> Result<(), AppError> {
         let rows =
             self.with_db(|tbl| tbl.select_columns_where(table, conditions.clone(), columns))?;
+        let columns = self.with_db(|tbl| tbl.columns_selected(table, columns))?;
 
-        print_select_column(columns, rows);
+        print_select(columns, rows);
         Ok(())
     }
 }

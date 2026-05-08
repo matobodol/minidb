@@ -23,7 +23,7 @@ where
 
     loop {
         // PROMPT
-        let prompt = if let Some(db_name) = app.current_db() {
+        let prompt = if let Ok(db_name) = app.show_current_database() {
             format!("[minidb:{}] > ", db_name)
         } else {
             "minidb > ".to_string()

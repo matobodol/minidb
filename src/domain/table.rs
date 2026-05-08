@@ -208,6 +208,15 @@ impl Table {
     pub(super) fn columns(&self) -> &[Column] {
         self.schema.columns()
     }
+
+    pub(crate) fn columns_selected(&self, columns: &[&str]) -> Result<Vec<Column>, DomainError> {
+        let mut selected = Vec::new();
+        for name in columns {
+            let index = self.schema.resolve_column(name)?;
+            selected.push(self.columns()[index].clone());
+        }
+        Ok(selected)
+    }
 }
 
 // ROW OPERATION FINAL

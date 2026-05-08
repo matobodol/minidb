@@ -158,4 +158,13 @@ impl Database {
         let tbl = self.table(table)?;
         Ok(tbl.columns().to_vec())
     }
+
+    pub fn columns_selected(
+        &self,
+        table: &str,
+        columns: &[&str],
+    ) -> Result<Vec<Column>, DomainError> {
+        let tbl = self.table(table)?;
+        Ok(tbl.columns_selected(columns)?)
+    }
 }

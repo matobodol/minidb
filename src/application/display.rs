@@ -1,6 +1,12 @@
 use comfy_table::{
-    Attribute, Cell, CellAlignment, Color, ContentArrangement, Table, TableComponent,
-    modifiers::UTF8_ROUND_CORNERS,
+    Attribute,
+    Cell,
+    CellAlignment,
+    Color,
+    ContentArrangement,
+    Table,
+    TableComponent,
+    // modifiers::UTF8_ROUND_CORNERS,
     presets::{UTF8_FULL, UTF8_FULL_CONDENSED},
 };
 
@@ -9,11 +15,12 @@ use crate::domain::{Column, Constraint, DataType};
 pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) -> usize {
     let mut table = Table::new();
 
-    table.apply_modifier(UTF8_ROUND_CORNERS);
-    table.set_content_arrangement(ContentArrangement::Dynamic);
+    // table.apply_modifier(UTF8_ROUND_CORNERS);
     // table.load_preset(UTF8_FULL); //full border
-    table.load_preset(UTF8_FULL_CONDENSED);
-
+    table
+        .load_preset(UTF8_FULL_CONDENSED)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .remove_style(TableComponent::HorizontalLines);
     // =====================
     // HEADER
     // =====================
@@ -64,38 +71,6 @@ pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) -> usize {
     rows.len()
 }
 
-pub fn print_select_column(columns: &[&str], rows: Vec<Vec<String>>) -> usize {
-    let mut table = Table::new();
-
-    table.apply_modifier(UTF8_ROUND_CORNERS);
-    table.set_content_arrangement(ContentArrangement::Dynamic);
-
-    // table.load_preset(UTF8_FULL); //full border
-    table.load_preset(UTF8_FULL_CONDENSED);
-
-    // header
-    let header: Vec<Cell> = columns
-        .iter()
-        .map(|c| Cell::new(*c).set_alignment(CellAlignment::Center))
-        .collect();
-
-    table.set_header(header);
-
-    // rows
-    for row in &rows {
-        let cells: Vec<Cell> = row
-            .iter()
-            .map(|value| Cell::new(value).set_alignment(CellAlignment::Right))
-            .collect();
-
-        table.add_row(cells);
-    }
-
-    println!("{table}");
-
-    rows.len()
-}
-
 pub fn print_describe(columns: Vec<Column>) {
     let mut table = Table::new();
 
@@ -107,14 +82,16 @@ pub fn print_describe(columns: Vec<Column>) {
     // =====================
     // HEADER
     // =====================
-    table.set_header(vec![
-        Cell::new("Field").add_attribute(Attribute::Bold),
-        Cell::new("Type").add_attribute(Attribute::Bold),
-        Cell::new("Null").add_attribute(Attribute::Bold),
-        Cell::new("Key").add_attribute(Attribute::Bold),
-        Cell::new("Default").add_attribute(Attribute::Bold),
-        Cell::new("Extra").add_attribute(Attribute::Bold),
-    ]);
+    let headers = ["Field", "Type", "Null", "Key", "Default", "Extra"]
+        .iter()
+        .map(|text| {
+            Cell::new(text)
+                .add_attribute(Attribute::Bold)
+                .set_alignment(CellAlignment::Center)
+        })
+        .collect::<Vec<Cell>>();
+
+    table.set_header(headers);
 
     // =====================
     // ROWS
