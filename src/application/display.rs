@@ -113,6 +113,7 @@ pub fn print_describe(columns: Vec<Column>) {
         Cell::new("Null").add_attribute(Attribute::Bold),
         Cell::new("Key").add_attribute(Attribute::Bold),
         Cell::new("Default").add_attribute(Attribute::Bold),
+        Cell::new("Extra").add_attribute(Attribute::Bold),
     ]);
 
     // =====================
@@ -125,6 +126,7 @@ pub fn print_describe(columns: Vec<Column>) {
             DataType::Int => "int".to_string(),
             DataType::Float => "float".to_string(),
             DataType::Str => "string".to_string(),
+
             DataType::Enum { variants } => {
                 let mut v: Vec<_> = variants.iter().cloned().collect();
                 v.sort();
@@ -133,6 +135,9 @@ pub fn print_describe(columns: Vec<Column>) {
             }
         };
 
+        // =====================
+        // NULLABLE
+        // =====================
         let is_nullable =
             if col.has_constraint(|c| matches!(c, Constraint::NotNull | Constraint::PrimaryKey)) {
                 "NO"
@@ -140,6 +145,9 @@ pub fn print_describe(columns: Vec<Column>) {
                 "YES"
             };
 
+        // =====================
+        // KEY
+        // =====================
         let key = if col.has_constraint(|c| matches!(c, Constraint::PrimaryKey)) {
             "PRI"
         } else if col.has_constraint(|c| matches!(c, Constraint::Unique)) {
@@ -148,6 +156,9 @@ pub fn print_describe(columns: Vec<Column>) {
             ""
         };
 
+        // =====================
+        // DEFAULT
+        // =====================
         let default = col
             .get_constraint(|c| {
                 if let Constraint::Default(v) = c {
@@ -159,7 +170,16 @@ pub fn print_describe(columns: Vec<Column>) {
             .unwrap_or("".to_string());
 
         // =====================
-        // COLOR (optional tapi cakep)
+        // EXTRA
+        // =====================
+        let extra = if col.is_increment() {
+            "auto_increment"
+        } else {
+            ""
+        };
+
+        // =====================
+        // COLOR
         // =====================
         let mut field_cell = Cell::new(field);
 
@@ -169,12 +189,16 @@ pub fn print_describe(columns: Vec<Column>) {
             field_cell = field_cell.fg(Color::Green).add_attribute(Attribute::Bold);
         }
 
+        // =====================
+        // ADD ROW
+        // =====================
         table.add_row(vec![
             field_cell,
             Cell::new(dtype),
             Cell::new(is_nullable),
             Cell::new(key),
             Cell::new(default),
+            Cell::new(extra),
         ]);
     }
 
