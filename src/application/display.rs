@@ -28,7 +28,7 @@ pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) -> usize {
                 cell = cell.fg(Color::Green).add_attribute(Attribute::Bold);
             }
 
-            cell
+            cell.set_alignment(CellAlignment::Center)
         })
         .collect();
 

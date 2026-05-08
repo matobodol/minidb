@@ -1,14 +1,45 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{
     Column, Condition, Constraint, DataType, DomainError, ResolvedCondition, Row, Schema, Value,
 };
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TableMeta {
+    increments: HashMap<String, i64>,
+}
+impl TableMeta {
+    pub(crate) fn next_increment(&mut self, column: &str) -> i64 {
+        let entry = self.increments.entry(column.to_string()).or_insert(1);
+
+        let current = *entry;
+
+        *entry += 1;
+
+        current
+    }
+
+    pub(crate) fn sync_increment(&mut self, column: &str, value: i64) {
+        let entry = self.increments.entry(column.to_string()).or_insert(1);
+
+        if value >= *entry {
+            *entry = value + 1;
+        }
+    }
+
+    pub(crate) fn remove_increment(&mut self, column: &str) {
+        self.increments.remove(column);
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Table {
     id_uniq: Option<String>,
     schema: Schema,
     rows: Vec<Row>,
+    meta: TableMeta,
 }
 impl Table {
     pub(crate) fn new() -> Self {
@@ -16,6 +47,7 @@ impl Table {
             id_uniq: None,
             schema: Schema::new(),
             rows: Vec::new(),
+            meta: TableMeta::default(),
         }
     }
 
@@ -194,6 +226,10 @@ impl Table {
             self.schema.remove_at(index);
             self.rows.iter_mut().for_each(|row| row.remove_at(index));
         }
+        // hapus meta
+        for name in columns {
+            self.meta.remove_increment(&name);
+        }
 
         Ok(indexes.len())
     }
@@ -208,7 +244,7 @@ impl Table {
     pub fn insert(
         &mut self,
         columns: Option<Vec<String>>,
-        rows: Vec<Vec<Value>>, // 🔥 multi-row
+        rows: Vec<Vec<Value>>,
     ) -> Result<(), DomainError> {
         for values in rows {
             let this = &mut *self;
@@ -269,14 +305,32 @@ impl Table {
             .iter()
             .enumerate()
             .map(|(index, column)| {
-                let input = buffer[index].clone();
+                let mut input = buffer[index].clone();
+
+                // =====================
+                // INCREMENT
+                // =====================
+                if input.is_none() && column.is_increment() {
+                    input = Some(Value::Int(self.meta.next_increment(column.name())));
+                }
 
                 // iterator untuk UNIQUE check (optional dipakai di enforce)
                 let existing_iter = self.rows.iter().map(|r| &r.values()[index]);
 
-                column.enforce(input, existing_iter, self.rows.len())
+                column.enforce(input, existing_iter)
             })
             .collect::<Result<_, _>>()?;
+
+        // =====================
+        // SYNC INCREMENT
+        // =====================
+        for (index, column) in columns.iter().enumerate() {
+            if column.is_increment() {
+                if let Value::Int(v) = row_values[index] {
+                    self.meta.sync_increment(column.name(), v);
+                }
+            }
+        }
 
         // =====================
         // INSERT
@@ -324,7 +378,7 @@ impl Table {
         }
 
         // =====================
-        // SNAPSHOT (🔥 penting)
+        // SNAPSHOT
         // =====================
         let snapshot = self.rows.clone();
 
@@ -358,7 +412,7 @@ impl Table {
                         .filter(|(i, _)| *i != row_idx)
                         .map(|(_, r)| &r.values()[col_idx]);
 
-                    column.enforce(input, existing_iter, snapshot.len())
+                    column.enforce(input, existing_iter)
                 })
                 .collect::<Result<_, _>>()?;
 
@@ -403,7 +457,7 @@ impl Table {
             .rows
             .iter()
             .filter(|row| {
-                conds.iter().all(|c| row.value_is_match(c)) // 🔥 AND
+                conds.iter().all(|c| row.value_is_match(c)) // AND
             })
             .map(|row| row.values().iter().map(|v| v.to_display_str()).collect())
             .collect();
@@ -449,7 +503,7 @@ impl Table {
             .rows
             .iter()
             .filter(|row| {
-                conds.iter().all(|c| row.value_is_match(c)) // 🔥 AND
+                conds.iter().all(|c| row.value_is_match(c)) // AND
             })
             .map(|row| {
                 projection_indices

@@ -76,7 +76,6 @@ impl Column {
         &self,
         input: Option<Value>,
         mut existing_values: impl Iterator<Item = &'a Value>,
-        row_count: usize,
     ) -> Result<Value, DomainError> {
         // =====================
         // RESOLVE VALUE
@@ -85,12 +84,8 @@ impl Column {
             Some(v) => self.data_type.coerce_value(v)?,
 
             None => {
-                // AUTO INCREMENT
-                if self.is_increment() {
-                    Value::Int((row_count as i64) + 1)
-                }
                 // DEFAULT
-                else if let Some(default) = self.default_value() {
+                if let Some(default) = self.default_value() {
                     self.data_type.coerce_value(default)?
                 }
                 // NOT NULL

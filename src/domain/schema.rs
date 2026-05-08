@@ -19,13 +19,6 @@ impl Schema {
         &self.columns
     }
 
-    pub(crate) fn _match_column<F>(&self, predicate: F) -> bool
-    where
-        F: Fn(&Column) -> bool,
-    {
-        self.columns.iter().any(|column| predicate(column))
-    }
-
     pub(crate) fn add_column(
         &mut self,
         columns: Vec<(&str, DataType, &[Constraint])>,

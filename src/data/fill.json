@@ -8,8 +8,8 @@
             "name": "id",
             "data_type": "Int",
             "constraint": [
-              "Unique",
-              "NotNull"
+              "PrimaryKey",
+              "Increment"
             ]
           },
           {
@@ -18,12 +18,12 @@
             "constraint": []
           },
           {
-            "name": "status",
+            "name": "state",
             "data_type": {
               "Enum": {
                 "variants": [
-                  "lulus",
-                  "gagal"
+                  "gagal",
+                  "lulus"
                 ]
               }
             },
@@ -41,16 +41,6 @@
             "name": "jurusan",
             "data_type": "Str",
             "constraint": []
-          },
-          {
-            "name": "a",
-            "data_type": "Int",
-            "constraint": []
-          },
-          {
-            "name": "b",
-            "data_type": "Int",
-            "constraint": []
           }
         ]
       },
@@ -58,28 +48,10 @@
         {
           "values": [
             {
-              "Int": 1
-            },
-            {
-              "Str": "jono"
-            },
-            {
-              "Enum": {
-                "value": "lulus"
-              }
-            },
-            "Null",
-            "Null",
-            "Null"
-          ]
-        },
-        {
-          "values": [
-            {
               "Int": 2
             },
             {
-              "Str": "joni"
+              "Str": "jini"
             },
             {
               "Enum": {
@@ -87,10 +59,8 @@
               }
             },
             {
-              "Str": "teknik mesin berat"
-            },
-            "Null",
-            "Null"
+              "Str": "Telekomunikasi dan informasi"
+            }
           ]
         },
         {
@@ -99,7 +69,7 @@
               "Int": 3
             },
             {
-              "Str": "jini"
+              "Str": "jani"
             },
             {
               "Enum": {
@@ -107,13 +77,34 @@
               }
             },
             {
-              "Str": "tata boga"
+              "Str": "Tata boga"
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Int": 4
             },
-            "Null",
-            "Null"
+            {
+              "Str": "jono"
+            },
+            {
+              "Enum": {
+                "value": "gagal"
+              }
+            },
+            {
+              "Str": "Tekni mesin berat"
+            }
           ]
         }
-      ]
+      ],
+      "meta": {
+        "increments": {
+          "id": 5
+        }
+      }
     }
   }
 }
