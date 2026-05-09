@@ -1,8 +1,10 @@
+use std::usize;
+
 use crate::{
     application::{
         app_error::AppError, map_domain_error, map_storage_error, print_describe, print_select,
     },
-    domain::{Condition, Database, DomainError},
+    domain::{Database, DomainError, Expr},
     storage::DatabaseStorage,
 };
 
@@ -145,48 +147,46 @@ impl<S: DatabaseStorage> AppManager<S> {
 }
 // Lookup API for application layer (read-only)
 impl<S: DatabaseStorage> AppManager<S> {
-    pub fn describe(&self, table: &str) -> Result<(), AppError> {
+    pub fn describe(&self, table: &str) -> Result<usize, AppError> {
         let columns = self.with_db(|tbl| tbl.columns(table))?;
 
+        let count = columns.len();
+
         print_describe(columns);
-        Ok(())
+
+        Ok(count)
     }
 
-    pub fn select_all(&self, table: &str) -> Result<(), AppError> {
+    pub fn select_all(&self, table: &str) -> Result<usize, AppError> {
         let rows = self.with_db(|tbl| tbl.select_all(table))?;
         let columns = self.with_db(|tbl| tbl.columns(table))?;
 
-        print_select(columns, rows);
-        Ok(())
+        Ok(print_select(columns, rows))
     }
 
-    pub fn select_where(&self, table: &str, conditions: Vec<Condition>) -> Result<(), AppError> {
-        let rows = self.with_db(|tbl| tbl.select_where(table, conditions.clone()))?;
+    pub fn select_where(&self, table: &str, conditions: &Expr) -> Result<usize, AppError> {
+        let rows = self.with_db(|tbl| tbl.select_where(table, conditions))?;
         let columns = self.with_db(|tbl| tbl.columns(table))?;
 
-        print_select(columns, rows);
-        Ok(())
+        Ok(print_select(columns, rows))
     }
 
-    pub fn select_columns(&self, table: &str, columns: &[&str]) -> Result<(), AppError> {
+    pub fn select_columns(&self, table: &str, columns: &[&str]) -> Result<usize, AppError> {
         let rows = self.with_db(|tbl| tbl.select_columns(table, columns))?;
         let columns = self.with_db(|tbl| tbl.columns_selected(table, columns))?;
 
-        print_select(columns, rows);
-        Ok(())
+        Ok(print_select(columns, rows))
     }
 
     pub fn select_where_columns(
         &self,
         table: &str,
-        conditions: Vec<Condition>,
+        conditions: &Expr,
         columns: &[&str],
-    ) -> Result<(), AppError> {
-        let rows =
-            self.with_db(|tbl| tbl.select_columns_where(table, conditions.clone(), columns))?;
+    ) -> Result<usize, AppError> {
+        let rows = self.with_db(|tbl| tbl.select_columns_where(table, conditions, columns))?;
         let columns = self.with_db(|tbl| tbl.columns_selected(table, columns))?;
 
-        print_select(columns, rows);
-        Ok(())
+        Ok(print_select(columns, rows))
     }
 }

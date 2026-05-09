@@ -1,4 +1,4 @@
-use crate::domain::{Condition, Constraint, DataType, Value};
+use crate::domain::{Constraint, DataType, Expr, Value};
 
 #[derive(Debug, Clone)]
 pub enum Command {
@@ -56,12 +56,12 @@ pub enum Command {
     UpdateWhere {
         table: String,
         assignments: Vec<(String, Value)>,
-        conditions: Vec<Condition>,
+        conditions: Expr,
     },
 
     Delete {
         table: String,
-        conditions: Vec<Condition>,
+        conditions: Expr,
     },
 
     // ===== SELECT =====
@@ -76,13 +76,13 @@ pub enum Command {
 
     SelectWhere {
         table: String,
-        conditions: Vec<Condition>,
+        conditions: Expr,
     },
 
     SelectColumnsWhere {
         table: String,
         columns: Vec<String>,
-        conditions: Vec<Condition>,
+        conditions: Expr,
     },
 }
 impl Command {

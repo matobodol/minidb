@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::DomainError;
+use crate::domain::{CompareOp, DomainError};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DataType {
@@ -86,22 +86,22 @@ pub enum Value {
     // Date(chrono::NaiveDate),
     Null,
 }
-
 impl Value {
-    pub fn compare(&self, op: &Cmp, other: &Value) -> bool {
-        if matches!(self, Value::Null) || matches!(other, Value::Null) {
-            return false;
-        }
+    pub fn compare(&self, op: &CompareOp, other: &Value) -> bool {
+        // if matches!(self, Value::Null) || matches!(other, Value::Null) {
+        //     return false;
+        // }
 
         match op {
-            Cmp::Eq => self.eq(other),
-            Cmp::Ne => !self.eq(other),
-            Cmp::Lt => self.lt(other),
-            Cmp::Gt => self.gt(other),
-            Cmp::Lte => self.le(other),
-            Cmp::Gte => self.ge(other),
-            Cmp::IsNull => matches!(other, Value::Null),
-            Cmp::IsNotNull => !matches!(other, Value::Null),
+            CompareOp::Eq => self.eq(other),
+            CompareOp::Ne => !self.eq(other),
+            CompareOp::Lt => self.lt(other),
+            CompareOp::Gt => self.gt(other),
+            CompareOp::Lte => self.le(other),
+            CompareOp::Gte => self.ge(other),
+            CompareOp::IsNull => matches!(other, Value::Null),
+            CompareOp::IsNotNull => !matches!(other, Value::Null),
+            _ => false,
         }
     }
 

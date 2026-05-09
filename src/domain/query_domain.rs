@@ -4,7 +4,7 @@ use crate::domain::{Cmp, Value};
 pub struct ResolvedCondition {
     pub index: usize,
     pub cmp: Cmp,
-    pub value: Option<Value>, // 🔥 penting
+    pub value: Option<Value>, // penting
 }
 
 impl ResolvedCondition {

@@ -1,12 +1,5 @@
 use comfy_table::{
-    Attribute,
-    Cell,
-    CellAlignment,
-    Color,
-    ContentArrangement,
-    Table,
-    TableComponent,
-    // modifiers::UTF8_ROUND_CORNERS,
+    Attribute, Cell, CellAlignment, Color, ContentArrangement, Table, TableComponent,
     presets::{UTF8_FULL, UTF8_FULL_CONDENSED},
 };
 
@@ -15,29 +8,28 @@ use crate::domain::{Column, Constraint, DataType};
 pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) -> usize {
     let mut table = Table::new();
 
-    // table.apply_modifier(UTF8_ROUND_CORNERS);
-    // table.load_preset(UTF8_FULL); //full border
     table
         .load_preset(UTF8_FULL_CONDENSED)
-        .set_content_arrangement(ContentArrangement::Dynamic)
-        .remove_style(TableComponent::HorizontalLines);
+        .set_content_arrangement(ContentArrangement::Dynamic);
+
     // =====================
     // HEADER
     // =====================
-    let header: Vec<Cell> = columns
+    let header = columns
         .iter()
         .map(|c| {
             let mut cell = Cell::new(c.name());
 
             if c.has_constraint(|c| matches!(c, Constraint::PrimaryKey)) {
-                cell = cell.fg(Color::Red).add_attribute(Attribute::Bold);
+                cell = cell.fg(Color::Red);
             } else if c.has_constraint(|c| matches!(c, Constraint::Unique)) {
-                cell = cell.fg(Color::Green).add_attribute(Attribute::Bold);
+                cell = cell.fg(Color::Green);
             }
 
-            cell.set_alignment(CellAlignment::Center)
+            cell.add_attribute(Attribute::Bold)
+                .set_alignment(CellAlignment::Center)
         })
-        .collect();
+        .collect::<Vec<Cell>>();
 
     table.set_header(header);
 
@@ -68,7 +60,12 @@ pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) -> usize {
 
     println!("{table}");
 
-    rows.len()
+    // =====================
+    // FOOTER
+    // =====================
+    let count = rows.len();
+
+    count
 }
 
 pub fn print_describe(columns: Vec<Column>) {

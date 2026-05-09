@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{Column, Condition, Constraint, DataType, DomainError, Table, Value};
+use crate::domain::{Column, Constraint, DataType, DomainError, Expr, Table, Value};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Database {
@@ -89,7 +89,7 @@ impl Database {
         table: &str,
         columns: Option<Vec<String>>,
         rows: Vec<Vec<Value>>, // multi-row
-    ) -> Result<(), DomainError> {
+    ) -> Result<usize, DomainError> {
         let tbl = self.table_mut(table)?;
 
         tbl.insert(columns, rows)
@@ -99,18 +99,20 @@ impl Database {
         &mut self,
         table: &str,
         assignments: Vec<(String, Value)>,
-        conditions: Vec<Condition>,
+        conditions: &Expr,
     ) -> Result<usize, DomainError> {
         let tbl = self.table_mut(table)?;
-        tbl.update_rows(assignments.into(), conditions.into())
+
+        tbl.update_rows(assignments, conditions)
     }
 
     pub(crate) fn delete_rows(
         &mut self,
         table: &str,
-        conditions: &[Condition],
+        conditions: &Expr,
     ) -> Result<usize, DomainError> {
         let tbl = self.table_mut(table)?;
+
         tbl.delete_rows(conditions)
     }
 }
@@ -126,7 +128,7 @@ impl Database {
     pub fn select_where(
         &self,
         table: &str,
-        conditions: Vec<Condition>,
+        conditions: &Expr,
     ) -> Result<Vec<Vec<String>>, DomainError> {
         let tbl = self.table(table)?;
 
@@ -146,7 +148,7 @@ impl Database {
     pub fn select_columns_where(
         &self,
         table: &str,
-        conditions: Vec<Condition>,
+        conditions: &Expr,
         columns: &[&str],
     ) -> Result<Vec<Vec<String>>, DomainError> {
         let tbl = self.table(table)?;

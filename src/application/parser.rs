@@ -1,6 +1,6 @@
 use crate::{
     application::{AppError, Command},
-    domain::{Cmp, Condition, Constraint, DataType, Value},
+    domain::{CompareExpr, CompareOp, Constraint, DataType, Expr, Value},
 };
 
 pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
@@ -380,7 +380,7 @@ fn parse_select(tokens: Vec<String>) -> Result<Command, AppError> {
     // =====================
     if tokens[1] == "*" {
         if tokens.len() > from_pos + 2 && tokens[from_pos + 2] == "where" {
-            let conditions = parse_conditions(&tokens[from_pos + 3..])?;
+            let conditions = parse_expr(&tokens[from_pos + 3..])?;
 
             return Ok(Command::SelectWhere { table, conditions });
         }
@@ -397,7 +397,7 @@ fn parse_select(tokens: Vec<String>) -> Result<Command, AppError> {
     // WHERE
     // =====================
     if tokens.len() > from_pos + 2 && tokens[from_pos + 2] == "where" {
-        let conditions = parse_conditions(&tokens[from_pos + 3..])?;
+        let conditions = parse_expr(&tokens[from_pos + 3..])?;
 
         return Ok(Command::SelectColumnsWhere {
             table,
@@ -441,8 +441,9 @@ fn parse_columns(tokens: &[String]) -> Result<Vec<String>, AppError> {
     Ok(cols)
 }
 
-fn parse_conditions(tokens: &[String]) -> Result<Vec<Condition>, AppError> {
-    let mut conditions = Vec::new();
+fn parse_expr(tokens: &[String]) -> Result<Expr, AppError> {
+    let mut exprs = Vec::new();
+    let mut ops = Vec::new();
     let mut i = 0;
 
     while i < tokens.len() {
@@ -451,20 +452,32 @@ fn parse_conditions(tokens: &[String]) -> Result<Vec<Condition>, AppError> {
         // =====================
         // IS NULL / IS NOT NULL
         // =====================
-        if tokens.get(i + 1).map(|s| s.as_str()) == Some("is") {
+        let expr = if tokens.get(i + 1).map(|s| s.as_str()) == Some("is") {
             match tokens.get(i + 2).map(|s| s.as_str()) {
                 Some("null") => {
-                    conditions.push(Condition::new(column, Cmp::IsNull, None));
                     i += 3;
+
+                    Expr::Compare(CompareExpr {
+                        column,
+                        op: CompareOp::IsNull,
+                        value: None,
+                    })
                 }
+
                 Some("not") => {
-                    if tokens.get(i + 3).map(|s| s.as_str()) == Some("null") {
-                        conditions.push(Condition::new(column, Cmp::IsNotNull, None));
-                        i += 4;
-                    } else {
+                    if tokens.get(i + 3).map(|s| s.as_str()) != Some("null") {
                         return Err(AppError::InvalidCommand("expected NULL".into()));
                     }
+
+                    i += 4;
+
+                    Expr::Compare(CompareExpr {
+                        column,
+                        op: CompareOp::IsNotNull,
+                        value: None,
+                    })
                 }
+
                 _ => {
                     return Err(AppError::InvalidCommand("expected NULL".into()));
                 }
@@ -478,37 +491,66 @@ fn parse_conditions(tokens: &[String]) -> Result<Vec<Condition>, AppError> {
                 return Err(AppError::InvalidCommand("invalid where clause".into()));
             }
 
-            let op = tokens[i + 1].as_str();
-            let value_token = &tokens[i + 2];
+            let op = match tokens[i + 1].as_str() {
+                "=" => CompareOp::Eq,
+                "!=" => CompareOp::Ne,
+                "<" => CompareOp::Lt,
+                ">" => CompareOp::Gt,
+                "<=" => CompareOp::Lte,
+                ">=" => CompareOp::Gte,
 
-            let cmp = match op {
-                "=" => Cmp::Eq,
-                "!=" => Cmp::Ne,
-                "<" => Cmp::Lt,
-                ">" => Cmp::Gt,
-                "<=" => Cmp::Lte,
-                ">=" => Cmp::Gte,
-                _ => return Err(AppError::InvalidCommand("invalid operator".into())),
+                _ => {
+                    return Err(AppError::InvalidCommand("invalid operator".into()));
+                }
             };
 
-            let value = parse_value(value_token)?;
+            let value = parse_value(&tokens[i + 2])?;
 
-            conditions.push(Condition::new(column, cmp, Some(value)));
             i += 3;
-        }
+
+            Expr::Compare(CompareExpr {
+                column,
+                op,
+                value: Some(value),
+            })
+        };
+
+        exprs.push(expr);
 
         // =====================
-        // HANDLE AND
+        // HANDLE AND / OR
         // =====================
         if i < tokens.len() {
-            if tokens[i] != "and" {
-                return Err(AppError::InvalidCommand("expected AND".into()));
+            match tokens[i].as_str() {
+                "and" => ops.push("and"),
+                "or" => ops.push("or"),
+                _ => {
+                    return Err(AppError::InvalidCommand("expected AND or OR".into()));
+                }
             }
+
             i += 1;
         }
     }
 
-    Ok(conditions)
+    build_expr_tree(exprs, ops)
+}
+fn build_expr_tree(mut exprs: Vec<Expr>, ops: Vec<&str>) -> Result<Expr, AppError> {
+    if exprs.is_empty() {
+        return Err(AppError::InvalidCommand("empty expression".into()));
+    }
+
+    let mut current = exprs.remove(0);
+
+    for (op, rhs) in ops.into_iter().zip(exprs) {
+        current = match op {
+            "and" => Expr::And(vec![current, rhs]),
+            "or" => Expr::Or(vec![current, rhs]),
+            _ => unreachable!(),
+        };
+    }
+
+    Ok(current)
 }
 
 fn parse_value(token: &str) -> Result<Value, AppError> {
@@ -614,7 +656,7 @@ fn parse_delete(tokens: Vec<String>) -> Result<Command, AppError> {
     if tokens.len() == 3 {
         return Ok(Command::Delete {
             table,
-            conditions: Vec::new(),
+            conditions: Expr::And(vec![]),
         });
     }
 
@@ -623,7 +665,7 @@ fn parse_delete(tokens: Vec<String>) -> Result<Command, AppError> {
         return Err(AppError::InvalidCommand("expected WHERE".into()));
     }
 
-    let conditions = parse_conditions(&tokens[4..])?;
+    let conditions = parse_expr(&tokens[4..])?;
 
     Ok(Command::Delete { table, conditions })
 }
@@ -687,10 +729,13 @@ fn parse_update(tokens: Vec<String>) -> Result<Command, AppError> {
     // =====================
     // PARSE CONDITIONS (OPTIONAL)
     // =====================
+    // =====================
+    // PARSE CONDITIONS (OPTIONAL)
+    // =====================
     let conditions = if let Some(pos) = where_pos {
-        parse_conditions(&tokens[pos + 1..])?
+        parse_expr(&tokens[pos + 1..])?
     } else {
-        Vec::new()
+        Expr::And(vec![])
     };
 
     Ok(Command::UpdateWhere {

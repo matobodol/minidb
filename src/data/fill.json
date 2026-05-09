@@ -171,11 +171,32 @@
               }
             }
           ]
+        },
+        {
+          "values": [
+            {
+              "Int": 6
+            },
+            {
+              "Str": "jana"
+            },
+            {
+              "Enum": {
+                "value": "gagal"
+              }
+            },
+            "Null",
+            {
+              "Enum": {
+                "value": "L"
+              }
+            }
+          ]
         }
       ],
       "meta": {
         "increments": {
-          "id": 6
+          "id": 7
         }
       }
     }

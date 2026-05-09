@@ -1,65 +1,131 @@
 use crate::{
-    application::{AppError, AppManager, Command},
+    application::{AppError, AppManager, Command, QueryInfo, QueryTimer, help},
     domain::{Constraint, DataType},
     storage::DatabaseStorage,
 };
 
-pub fn execute<S: DatabaseStorage>(cmd: Command, app: &mut AppManager<S>) -> Result<(), AppError> {
+// pub fn execute<S: DatabaseStorage>(cmd: Command, app: &mut AppManager<S>) -> Result<(), AppError> {
+pub fn execute<S: DatabaseStorage>(
+    cmd: Command,
+    app: &mut AppManager<S>,
+) -> Result<QueryInfo, AppError> {
     match cmd {
         // ===== REPL =====
-        Command::Exit => Ok(()),
-        Command::Help => Ok(()),
-        Command::DebugDatabase => app.with_db(|db| db.debug()),
-        Command::DebugTable { name } => app.with_db(|db| db.debug_table(&name)),
+        Command::Exit => Ok(QueryInfo::Exit),
+        Command::Help => {
+            help();
+            Ok(QueryInfo::Silent)
+        }
+        Command::DebugDatabase => {
+            app.with_db(|db| db.debug())?;
+            Ok(QueryInfo::Silent)
+        }
+        Command::DebugTable { name } => {
+            app.with_db(|db| db.debug_table(&name))?;
+            Ok(QueryInfo::Silent)
+        }
 
         // ===== DATABASE =====
-        Command::CreateDatabase { name } => app.create_database(&name),
-        Command::UseDatabase { name } => app.use_database(&name),
-        Command::DropDatabase { name } => app.drop_database(&name),
+        Command::CreateDatabase { name } => {
+            let timer = QueryTimer::start();
+            app.create_database(&name)?;
+            Ok(QueryInfo::CreateDatabase {
+                name,
+                elapsed_ms: timer.elapsed_ms(),
+            })
+        }
+        Command::UseDatabase { name } => {
+            let timer = QueryTimer::start();
+            app.use_database(&name)?;
+            Ok(QueryInfo::UseDatabase {
+                name,
+                elapsed_ms: timer.elapsed_ms(),
+            })
+        }
+        Command::DropDatabase { name } => {
+            let timer = QueryTimer::start();
+            app.drop_database(&name)?;
+            Ok(QueryInfo::DropDatabase {
+                name,
+                elapsed_ms: timer.elapsed_ms(),
+            })
+        }
         Command::ShowDatabases => {
-            for db in app.show_databases() {
-                println!("{}", db);
+            let timer = QueryTimer::start();
+            let databases = app.show_databases();
+            for db in &databases {
+                println!("  - {db}");
             }
-            Ok(())
+            Ok(QueryInfo::ShowDatabases {
+                count: databases.len(),
+                elapsed_ms: timer.elapsed_ms(),
+            })
         }
         Command::ShowCurrentDatabase => {
             println!("{}", app.show_current_database().unwrap_or("none".into()));
-            Ok(())
+            Ok(QueryInfo::Silent)
         }
 
         // ===== TABLE =====
-        Command::CreateTable { name } => app.with_db_mut(|db| db.create_table(&name)),
+        Command::CreateTable { name } => {
+            let timer = QueryTimer::start();
+            app.with_db_mut(|db| db.create_table(&name))?;
+            Ok(QueryInfo::CreateTable {
+                name,
+                elapsed_ms: timer.elapsed_ms(),
+            })
+        }
         Command::DropTable { name } => {
+            let timer = QueryTimer::start();
             app.with_db_mut(|db| db.drop_table(&name))?;
-            Ok(())
+            Ok(QueryInfo::DropTable {
+                name,
+                elapsed_ms: timer.elapsed_ms(),
+            })
         }
         Command::ShowTables => {
+            let timer = QueryTimer::start();
             let tables = app.with_db(|db| Ok(db.list_tables()))?;
-            for t in tables {
-                println!("{}", t);
+            for t in &tables {
+                println!("  - {t}");
             }
-            Ok(())
+            Ok(QueryInfo::ShowTables {
+                count: tables.len(),
+                elapsed_ms: timer.elapsed_ms(),
+            })
         }
         Command::DescribeTable { table } => {
-            app.describe(&table)?;
-
-            Ok(())
+            let timer = QueryTimer::start();
+            let columns = app.describe(&table)?;
+            Ok(QueryInfo::Describe {
+                columns,
+                elapsed_ms: timer.elapsed_ms(),
+            })
         }
 
         // ===== COLUMN =====
         Command::AlterTableAddColumn { table, columns } => {
+            let timer = QueryTimer::start();
+            let affected = columns.len();
             let cols: Vec<(&str, DataType, &[Constraint])> = columns
                 .iter()
                 .map(|(n, dt, c)| (n.as_str(), dt.clone(), c.as_slice()))
                 .collect();
-
             app.with_db_mut(|db| db.add_columns(&table, cols))?;
-            Ok(())
+            Ok(QueryInfo::AlterAddColumn {
+                affected,
+                elapsed_ms: timer.elapsed_ms(),
+            })
         }
 
         Command::AlterTableDropColumn { table, columns } => {
+            let timer = QueryTimer::start();
+            let affected = columns.len();
             app.with_db_mut(|db| db.delete_column(&table, columns))?;
-            Ok(())
+            Ok(QueryInfo::AlterDropColumn {
+                affected,
+                elapsed_ms: timer.elapsed_ms(),
+            })
         }
 
         // ===== Row =====
@@ -68,39 +134,82 @@ pub fn execute<S: DatabaseStorage>(cmd: Command, app: &mut AppManager<S>) -> Res
             columns,
             rows,
         } => {
-            app.with_db_mut(|db| db.insert(&table, columns, rows))?;
-            Ok(())
+            let timer = QueryTimer::start();
+            let affected = app.with_db_mut(|db| db.insert(&table, columns, rows))?;
+
+            Ok(QueryInfo::Insert {
+                affected,
+                elapsed_ms: timer.elapsed_ms(),
+            })
         }
+
         Command::UpdateWhere {
             table,
             assignments,
             conditions,
-        } => app.with_db_mut(|db| {
-            let updated = db.update_rows(&table, assignments, conditions)?;
-            println!("{} rows updated", updated);
-            Ok(())
-        }),
-        Command::Delete { table, conditions } => app.with_db_mut(|db| {
-            let deleted = db.delete_rows(&table, &conditions)?;
-            println!("{} rows deleted", deleted);
-            Ok(())
-        }),
+        } => {
+            let timer = QueryTimer::start();
+            let updated = app.with_db_mut(|db| db.update_rows(&table, assignments, &conditions))?;
+
+            Ok(QueryInfo::Update {
+                affected: updated,
+                elapsed_ms: timer.elapsed_ms(),
+            })
+        }
+
+        Command::Delete { table, conditions } => {
+            let timer = QueryTimer::start();
+            let deleted = app.with_db_mut(|db| db.delete_rows(&table, &conditions))?;
+
+            Ok(QueryInfo::Delete {
+                affected: deleted,
+                elapsed_ms: timer.elapsed_ms(),
+            })
+        }
 
         // ===== SELECT =====
-        Command::SelectAll { table } => app.select_all(&table),
-        Command::SelectWhere { table, conditions } => app.select_where(&table, conditions),
-        Command::SelectColumns { table, columns } => {
-            let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            app.select_columns(&table, &cols)
+        Command::SelectAll { table } => {
+            let timer = QueryTimer::start();
+            let rows = app.select_all(&table)?;
+
+            Ok(QueryInfo::Select {
+                rows,
+                elapsed_ms: timer.elapsed_ms(),
+            })
         }
+        Command::SelectColumns { table, columns } => {
+            let timer = QueryTimer::start();
+            let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
+            let rows = app.select_columns(&table, &cols)?;
+
+            Ok(QueryInfo::Select {
+                rows,
+                elapsed_ms: timer.elapsed_ms(),
+            })
+        }
+        Command::SelectWhere { table, conditions } => {
+            let timer = QueryTimer::start();
+            let rows = app.select_where(&table, &conditions)?;
+
+            Ok(QueryInfo::Select {
+                rows,
+                elapsed_ms: timer.elapsed_ms(),
+            })
+        }
+
         Command::SelectColumnsWhere {
             table,
             columns,
             conditions,
         } => {
+            let timer = QueryTimer::start();
             let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            app.select_where_columns(&table, conditions, &cols)
-        } // ===== BELUM IMPLEMENT =====
-          // _ => Err(AppError::InvalidCommand("not implemented".into())),
+            let rows = app.select_where_columns(&table, &conditions, &cols)?;
+
+            Ok(QueryInfo::Select {
+                rows,
+                elapsed_ms: timer.elapsed_ms(),
+            })
+        }
     }
 }

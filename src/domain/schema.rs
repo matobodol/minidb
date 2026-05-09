@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{Cmp, Column, Condition, Constraint, DataType, DomainError, ResolvedCondition};
+use crate::domain::{
+    Column, CompareOp, Constraint, DataType, DomainError, Expr, ResolvedCompare, ResolvedExpr,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schema {
@@ -52,42 +54,49 @@ impl Schema {
 
 // VALIDATOR
 impl Schema {
-    pub(super) fn bind_conditions(
-        &self,
-        conditions: &[Condition],
-    ) -> Result<Vec<ResolvedCondition>, DomainError> {
-        conditions
-            .iter()
-            .map(|cond| {
-                let index = self.resolve_column(&cond.column)?;
+    pub(super) fn bind_expr(&self, expr: &Expr) -> Result<ResolvedExpr, DomainError> {
+        match expr {
+            Expr::Compare(cmp) => {
+                let index = self.resolve_column(&cmp.column)?;
                 let column = &self.columns[index];
 
-                let value = match cond.cmp {
-                    Cmp::IsNull | Cmp::IsNotNull => {
-                        if cond.value.is_some() {
-                            return Err(DomainError::InvalidOperation(
-                                "IS NULL should not have value".into(),
-                            ));
-                        }
-                        None
-                    }
+                let value = match cmp.op {
+                    CompareOp::IsNull | CompareOp::IsNotNull => None,
 
                     _ => {
-                        let raw = cond.value.clone().ok_or(DomainError::InvalidOperation(
-                            "missing value in condition".into(),
-                        ))?;
+                        let v = cmp.value.clone().ok_or(DomainError::NotAllowedNull)?;
 
-                        Some(column.data_type().coerce_value(raw)?)
+                        Some(column.data_type().coerce_value(v)?)
                     }
                 };
 
-                Ok(ResolvedCondition {
+                Ok(ResolvedExpr::Compare(ResolvedCompare::new(
                     index,
-                    cmp: cond.cmp.clone(),
+                    cmp.op.clone(),
                     value,
-                })
-            })
-            .collect()
+                )))
+            }
+
+            Expr::And(xs) => {
+                let items = xs
+                    .iter()
+                    .map(|x| self.bind_expr(x))
+                    .collect::<Result<_, _>>()?;
+
+                Ok(ResolvedExpr::And(items))
+            }
+
+            Expr::Or(xs) => {
+                let items = xs
+                    .iter()
+                    .map(|x| self.bind_expr(x))
+                    .collect::<Result<_, _>>()?;
+
+                Ok(ResolvedExpr::Or(items))
+            }
+
+            Expr::Not(inner) => Ok(ResolvedExpr::Not(Box::new(self.bind_expr(inner)?))),
+        }
     }
 
     /// Validates column existence and returns its index
@@ -97,67 +106,4 @@ impl Schema {
             .position(|column| column.name() == name)
             .ok_or(DomainError::ColumnNotFound(name.to_string()))
     }
-
-    // pub(super) fn validate_len(&self, values_len: usize) -> Result<(), DomainError> {
-    //     if values_len != self.columns.len() {
-    //         return Err(DomainError::ColumnCountMismatch {
-    //             expected: self.columns.len(),
-    //             found: values_len,
-    //         });
-    //     }
-    //
-    //     Ok(())
-    // }
-
-    // pub(super) fn validate_row(&self, values: &[Value]) -> Result<(), DomainError> {
-    //     // tetap penting
-    //     self.validate_len(values.len())?;
-    //
-    //     for (value, column) in values.iter().zip(self.columns().iter()) {
-    //         // hanya constraint, bukan type lagi
-    //
-    //         // NOT NULL / PK
-    //         if matches!(value, Value::Null)
-    //             && column
-    //                 .has_constraint(|c| matches!(c, Constraint::NotNull | Constraint::PrimaryKey))
-    //         {
-    //             return Err(DomainError::NotAllowedNull);
-    //         }
-    //
-    //         if !column.data_type().matches_type(value) {
-    //             return Err(DomainError::TypeMismatch);
-    //         }
-    //     }
-    //
-    //     Ok(())
-    // }
-    // pub(super) fn validate_row(&self, values: &[Value]) -> Result<(), DomainError> {
-    //     self.validate_len(values.len())?;
-    //
-    //     for (index, (value, column)) in values.iter().zip(self.columns().iter()).enumerate() {
-    //         self.validate_type(index, column.data_type(), value)?;
-    //     }
-    //     Ok(())
-    // }
-
-    // pub(super) fn validate_update(&self, index: usize, value: &Value) -> Result<(), DomainError> {
-    //     let column = self
-    //         .columns
-    //         .get(index)
-    //         .ok_or(DomainError::ColumnIndexNotFound(index))?;
-    //
-    //     self.validate_type(index, column.data_type(), value)
-    // }
-    //
-    // pub(super) fn validate_type(
-    //     &self,
-    //     target_index: usize,
-    //     data_type: &DataType,
-    //     value: &Value,
-    // ) -> Result<(), DomainError> {
-    //     if !data_type.matches_value(value) {
-    //         return Err(DomainError::TypeMismatch);
-    //     }
-    //     Ok(())
-    // }
 }

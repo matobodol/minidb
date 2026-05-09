@@ -18,3 +18,9 @@ pub use repl::*;
 
 pub mod display;
 pub use display::*;
+
+pub mod help;
+pub use help::*;
+
+pub mod output;
+pub use output::*;
