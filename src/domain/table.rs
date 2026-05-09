@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{
-    Column, CompareOp, Constraint, DataType, DomainError, Expr, ResolvedCompare, ResolvedExpr, Row,
-    Schema, TableMeta, Value,
+    Column, Compare, CompareOp, Constraint, DataType, DomainError, Expr, ResolvedCompare,
+    ResolvedExpr, Row, Schema, TableMeta, Value,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,8 +43,6 @@ impl Table {
         indices.len()
     }
 
-    // filter: bekerja bersama (row.value_is_match())
-    // cari index baris(visual: vertikal). bukan index values (visual: horizontal)
     pub(crate) fn find_matching_rows(&self, resolvedexpr: &ResolvedExpr) -> Vec<usize> {
         self.rows
             .iter()
@@ -84,7 +82,7 @@ impl Table {
                     return false;
                 };
 
-                selected.compare(&cmp.op, value)
+                Compare::compare(selected, &cmp.op, value)
             }
         }
     }
@@ -248,7 +246,7 @@ impl Table {
 
 // ROW OPERATION FINAL
 impl Table {
-    pub fn insert(
+    pub(crate) fn insert(
         &mut self,
         columns: Option<Vec<String>>,
         rows: Vec<Vec<Value>>,

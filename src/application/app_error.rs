@@ -51,13 +51,10 @@ pub fn map_domain_error(err: DomainError) -> AppError {
         DomainError::ColumnValueMismatch => {
             AppError::InvalidOperation("Column value mis match".into())
         }
+
         // ===== SCHEMA =====
         DomainError::TypeMismatch { .. } => {
             AppError::InvalidOperation("Inserted value has incompatible type".into())
-        }
-
-        DomainError::ColumnCountMismatch { .. } => {
-            AppError::InvalidOperation("Number of values does not match table schema".into())
         }
 
         // ===== CONSTRAINT =====
@@ -72,9 +69,6 @@ pub fn map_domain_error(err: DomainError) -> AppError {
 
         DomainError::NotUniqValue(col) => {
             AppError::ConstraintViolation(format!("Value must be unique in column '{}'", col))
-        }
-        DomainError::ConstrainUniqeAlreadyExist => {
-            AppError::ConstraintViolation("Column with unique is already exist.".into())
         }
 
         // ===== CONSTRAINT (NEW) =====
@@ -107,15 +101,9 @@ pub fn map_domain_error(err: DomainError) -> AppError {
         }
 
         // ===== ROW =====
-        DomainError::ValueNotFound { .. } => {
-            AppError::NotFound("Requested value was not found".into())
-        }
-
         DomainError::InsertDuplicateValuesInColumn(col) => {
             AppError::ConstraintViolation(format!("Duplicate value in column '{}'", col))
         }
-
-        DomainError::InvalidCondition { reason } => AppError::InvalidCommand(reason),
 
         // ===== TABLE =====
         DomainError::DuplicateTableName => {
@@ -127,8 +115,6 @@ pub fn map_domain_error(err: DomainError) -> AppError {
         }
 
         // ===== COLUMN =====
-        DomainError::ColumnIndexNotFound(_) => AppError::InternalError,
-
         DomainError::ColumnNotFound(name) => {
             AppError::NotFound(format!("Column '{}' not found", name))
         }

@@ -8,7 +8,7 @@ pub struct Row {
 }
 
 impl Row {
-    pub fn new(values: Vec<Value>) -> Self {
+    pub(crate) fn new(values: Vec<Value>) -> Self {
         Self { values }
     }
 
@@ -20,7 +20,7 @@ impl Row {
         self.values.remove(index);
     }
 
-    pub fn values(&self) -> &Vec<Value> {
+    pub(crate) fn values(&self) -> &Vec<Value> {
         &self.values
     }
 }

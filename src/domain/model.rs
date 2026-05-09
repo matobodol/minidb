@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{CompareOp, DomainError};
+use crate::domain::DomainError;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DataType {
@@ -86,67 +86,6 @@ pub enum Value {
     // Date(chrono::NaiveDate),
     Null,
 }
-impl Value {
-    pub fn compare(&self, op: &CompareOp, other: &Value) -> bool {
-        // if matches!(self, Value::Null) || matches!(other, Value::Null) {
-        //     return false;
-        // }
-
-        match op {
-            CompareOp::Eq => self.eq(other),
-            CompareOp::Ne => !self.eq(other),
-            CompareOp::Lt => self.lt(other),
-            CompareOp::Gt => self.gt(other),
-            CompareOp::Lte => self.le(other),
-            CompareOp::Gte => self.ge(other),
-            CompareOp::IsNull => matches!(other, Value::Null),
-            CompareOp::IsNotNull => !matches!(other, Value::Null),
-            _ => false,
-        }
-    }
-
-    fn eq(&self, other: &Value) -> bool {
-        match (self, other) {
-            (Value::Int(a), Value::Int(b)) => a == b,
-            (Value::Str(a), Value::Str(b)) => a == b,
-            (Value::Float(a), Value::Float(b)) => a == b,
-            (Value::Enum { value: a }, Value::Enum { value: b }) => a == b,
-            _ => false,
-        }
-    }
-
-    fn lt(&self, other: &Value) -> bool {
-        match (self, other) {
-            (Value::Int(a), Value::Int(b)) => a < b,
-            (Value::Float(a), Value::Float(b)) => a < b,
-            _ => false,
-        }
-    }
-
-    fn gt(&self, other: &Value) -> bool {
-        match (self, other) {
-            (Value::Int(a), Value::Int(b)) => a > b,
-            (Value::Float(a), Value::Float(b)) => a > b,
-            _ => false,
-        }
-    }
-
-    fn le(&self, other: &Value) -> bool {
-        match (self, other) {
-            (Value::Int(a), Value::Int(b)) => a <= b,
-            (Value::Float(a), Value::Float(b)) => a <= b,
-            _ => false,
-        }
-    }
-
-    fn ge(&self, other: &Value) -> bool {
-        match (self, other) {
-            (Value::Int(a), Value::Int(b)) => a >= b,
-            (Value::Float(a), Value::Float(b)) => a >= b,
-            _ => false,
-        }
-    }
-}
 
 impl Value {
     pub(crate) fn to_display_str(&self) -> String {
@@ -158,16 +97,4 @@ impl Value {
             Value::Null => "-".to_string(),
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum Cmp {
-    Eq,
-    Ne,
-    Lt,
-    Gt,
-    Lte,
-    Gte,
-    IsNull,
-    IsNotNull,
 }

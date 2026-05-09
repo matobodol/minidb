@@ -173,7 +173,7 @@ impl<S: DatabaseStorage> AppManager<S> {
 
     pub fn select_columns(&self, table: &str, columns: &[&str]) -> Result<usize, AppError> {
         let rows = self.with_db(|tbl| tbl.select_columns(table, columns))?;
-        let columns = self.with_db(|tbl| tbl.columns_selected(table, columns))?;
+        let columns = self.with_db(|tbl| tbl.selected_columns(table, columns))?;
 
         Ok(print_select(columns, rows))
     }
@@ -185,7 +185,7 @@ impl<S: DatabaseStorage> AppManager<S> {
         columns: &[&str],
     ) -> Result<usize, AppError> {
         let rows = self.with_db(|tbl| tbl.select_columns_where(table, conditions, columns))?;
-        let columns = self.with_db(|tbl| tbl.columns_selected(table, columns))?;
+        let columns = self.with_db(|tbl| tbl.selected_columns(table, columns))?;
 
         Ok(print_select(columns, rows))
     }

@@ -161,7 +161,7 @@ impl Database {
         Ok(tbl.columns().to_vec())
     }
 
-    pub fn columns_selected(
+    pub fn selected_columns(
         &self,
         table: &str,
         columns: &[&str],
