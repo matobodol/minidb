@@ -1,5 +1,15 @@
 {
   "tables": {
+    "users": {
+      "id_uniq": null,
+      "schema": {
+        "columns": []
+      },
+      "rows": [],
+      "meta": {
+        "increments": {}
+      }
+    },
     "rdb": {
       "id_uniq": null,
       "schema": {
@@ -22,8 +32,8 @@
             "data_type": {
               "Enum": {
                 "variants": [
-                  "lulus",
-                  "gagal"
+                  "gagal",
+                  "lulus"
                 ]
               }
             },
@@ -47,8 +57,8 @@
             "data_type": {
               "Enum": {
                 "variants": [
-                  "P",
-                  "L"
+                  "L",
+                  "P"
                 ]
               }
             },
@@ -192,11 +202,53 @@
               }
             }
           ]
+        },
+        {
+          "values": [
+            {
+              "Int": 7
+            },
+            {
+              "Str": "jojon"
+            },
+            {
+              "Enum": {
+                "value": "lulus"
+              }
+            },
+            "Null",
+            {
+              "Enum": {
+                "value": "L"
+              }
+            }
+          ]
+        },
+        {
+          "values": [
+            {
+              "Int": 8
+            },
+            {
+              "Str": "jejen sarijen"
+            },
+            {
+              "Enum": {
+                "value": "gagal"
+              }
+            },
+            "Null",
+            {
+              "Enum": {
+                "value": "P"
+              }
+            }
+          ]
         }
       ],
       "meta": {
         "increments": {
-          "id": 7
+          "id": 9
         }
       }
     }

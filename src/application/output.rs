@@ -168,4 +168,6 @@ pub fn print_query_result(info: QueryInfo) {
 
         QueryInfo::Silent => {}
     }
+
+    println!()
 }

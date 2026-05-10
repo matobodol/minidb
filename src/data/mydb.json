@@ -1,0 +1,14 @@
+{
+  "tables": {
+    "users": {
+      "id_uniq": null,
+      "schema": {
+        "columns": []
+      },
+      "rows": [],
+      "meta": {
+        "increments": {}
+      }
+    }
+  }
+}
