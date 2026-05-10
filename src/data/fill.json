@@ -32,8 +32,8 @@
             "data_type": {
               "Enum": {
                 "variants": [
-                  "gagal",
-                  "lulus"
+                  "lulus",
+                  "gagal"
                 ]
               }
             },

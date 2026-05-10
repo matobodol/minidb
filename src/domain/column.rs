@@ -44,10 +44,13 @@ impl Column {
         self.constraint.iter().any(predicate)
     }
 
-    pub fn get_constraint<T>(&self, extractor: impl Fn(&Constraint) -> Option<T>) -> Option<T> {
+    pub(crate) fn get_constraint<T>(
+        &self,
+        extractor: impl Fn(&Constraint) -> Option<T>,
+    ) -> Option<T> {
         self.constraint.iter().find_map(extractor)
     }
-    pub(crate) fn default_value(&self) -> Option<Value> {
+    pub(super) fn default_value(&self) -> Option<Value> {
         self.get_constraint(|c| {
             if let Constraint::Default(v) = c {
                 Some(v.clone())
@@ -59,11 +62,11 @@ impl Column {
 }
 
 impl Column {
-    pub(crate) fn is_nullable(&self) -> bool {
+    pub(super) fn is_nullable(&self) -> bool {
         !self.has_constraint(|c| matches!(c, Constraint::NotNull | Constraint::PrimaryKey))
     }
 
-    pub(crate) fn is_unique(&self) -> bool {
+    pub(super) fn is_unique(&self) -> bool {
         self.has_constraint(|c| matches!(c, Constraint::Unique | Constraint::PrimaryKey))
     }
 
@@ -72,7 +75,7 @@ impl Column {
     }
 }
 impl Column {
-    pub(crate) fn enforce<'a>(
+    pub(super) fn enforce<'a>(
         &self,
         input: Option<Value>,
         mut existing_values: impl Iterator<Item = &'a Value>,

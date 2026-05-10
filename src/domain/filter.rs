@@ -55,70 +55,46 @@ pub struct ResolvedCompare {
     pub value: Option<Value>,
 }
 impl ResolvedCompare {
-    pub fn new(index: usize, op: CompareOp, value: Option<Value>) -> Self {
+    pub(super) fn new(index: usize, op: CompareOp, value: Option<Value>) -> Self {
         Self { index, op, value }
     }
 }
 
-pub struct Compare;
-impl Compare {
-    pub fn compare(left: &Value, op: &CompareOp, right: &Value) -> bool {
-        // if matches!(self, Value::Null) || matches!(other, Value::Null) {
-        //     return false;
-        // }
+pub(super) fn compare(left: &Value, op: &CompareOp, right: &Value) -> bool {
+    use std::cmp::Ordering::*;
 
-        match op {
-            CompareOp::Eq => Compare::eq(left, right),
-            CompareOp::Ne => !Compare::eq(left, right),
-            CompareOp::Lt => Compare::lt(left, right),
-            CompareOp::Gt => Compare::gt(left, right),
-            CompareOp::Lte => Compare::le(left, right),
-            CompareOp::Gte => Compare::ge(left, right),
-            CompareOp::IsNull => matches!(right, Value::Null),
-            CompareOp::IsNotNull => !matches!(right, Value::Null),
-            _ => false,
-        }
+    match op {
+        CompareOp::Eq => eq(left, right),
+        CompareOp::Ne => !eq(left, right),
+
+        CompareOp::Lt => ord(left, right, |o| o == Less),
+        CompareOp::Gt => ord(left, right, |o| o == Greater),
+        CompareOp::Lte => ord(left, right, |o| o != Greater),
+        CompareOp::Gte => ord(left, right, |o| o != Less),
+
+        // CompareOp::IsNull => matches!(left, Value::Null),
+        // CompareOp::IsNotNull => !matches!(left, Value::Null),
+        _ => false,
     }
+}
 
-    fn eq(left: &Value, right: &Value) -> bool {
-        match (left, right) {
-            (Value::Int(a), Value::Int(b)) => a == b,
-            (Value::Str(a), Value::Str(b)) => a == b,
-            (Value::Float(a), Value::Float(b)) => a == b,
-            (Value::Enum { value: a }, Value::Enum { value: b }) => a == b,
-            _ => false,
-        }
+fn eq(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Int(a), Value::Int(b)) => a == b,
+        (Value::Float(a), Value::Float(b)) => a == b,
+        (Value::Str(a), Value::Str(b)) => a == b,
+        (Value::Enum { value: a }, Value::Enum { value: b }) => a == b,
+        _ => false,
     }
+}
 
-    fn lt(left: &Value, right: &Value) -> bool {
-        match (left, right) {
-            (Value::Int(a), Value::Int(b)) => a < b,
-            (Value::Float(a), Value::Float(b)) => a < b,
-            _ => false,
-        }
-    }
-
-    fn gt(left: &Value, right: &Value) -> bool {
-        match (left, right) {
-            (Value::Int(a), Value::Int(b)) => a > b,
-            (Value::Float(a), Value::Float(b)) => a > b,
-            _ => false,
-        }
-    }
-
-    fn le(left: &Value, right: &Value) -> bool {
-        match (left, right) {
-            (Value::Int(a), Value::Int(b)) => a <= b,
-            (Value::Float(a), Value::Float(b)) => a <= b,
-            _ => false,
-        }
-    }
-
-    fn ge(left: &Value, right: &Value) -> bool {
-        match (left, right) {
-            (Value::Int(a), Value::Int(b)) => a >= b,
-            (Value::Float(a), Value::Float(b)) => a >= b,
-            _ => false,
-        }
+fn ord<F>(left: &Value, right: &Value, cmp: F) -> bool
+where
+    F: FnOnce(std::cmp::Ordering) -> bool,
+{
+    match (left, right) {
+        (Value::Int(a), Value::Int(b)) => cmp(a.cmp(b)),
+        (Value::Float(a), Value::Float(b)) => a.partial_cmp(b).is_some_and(cmp),
+        _ => false,
     }
 }

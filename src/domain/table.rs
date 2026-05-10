@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::{
-    Column, Compare, CompareOp, Constraint, DataType, DomainError, Expr, ResolvedCompare,
-    ResolvedExpr, Row, Schema, TableMeta, Value,
+    Column, CompareOp, Constraint, DataType, DomainError, Expr, ResolvedCompare, ResolvedExpr, Row,
+    Schema, TableMeta, Value, compare,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,7 +13,7 @@ pub struct Table {
     meta: TableMeta,
 }
 impl Table {
-    pub(crate) fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             id_uniq: None,
             schema: Schema::new(),
@@ -43,7 +43,7 @@ impl Table {
         indices.len()
     }
 
-    pub(crate) fn find_matching_rows(&self, resolvedexpr: &ResolvedExpr) -> Vec<usize> {
+    fn find_matching_rows(&self, resolvedexpr: &ResolvedExpr) -> Vec<usize> {
         self.rows
             .iter()
             .enumerate()
@@ -53,36 +53,30 @@ impl Table {
             .collect::<Vec<_>>()
     }
 
-    pub(crate) fn row_matches(&self, row: &Row, expr: &ResolvedExpr) -> bool {
+    fn row_matches(&self, row: &Row, expr: &ResolvedExpr) -> bool {
         match expr {
             ResolvedExpr::Compare(cmp) => Self::compare_row(row, cmp),
-
             ResolvedExpr::And(xs) => xs.iter().all(|x| self.row_matches(row, x)),
-
             ResolvedExpr::Or(xs) => xs.iter().any(|x| self.row_matches(row, x)),
-
             ResolvedExpr::Not(inner) => !self.row_matches(row, inner),
         }
     }
 
     fn compare_row(row: &Row, cmp: &ResolvedCompare) -> bool {
-        let Some(selected) = row.values().get(cmp.index) else {
-            return false;
-        };
+        // let Some(selected) = row.values().get(cmp.index) else {
+        //     return false;
+        // };
+        let selected = &row.values()[cmp.index]; // index sudah resolved
 
         match cmp.op {
-            CompareOp::IsNull => {
-                matches!(selected, Value::Null)
-            }
-
+            CompareOp::IsNull => matches!(selected, Value::Null),
             CompareOp::IsNotNull => !matches!(selected, Value::Null),
-
             _ => {
                 let Some(ref value) = cmp.value else {
                     return false;
                 };
 
-                Compare::compare(selected, &cmp.op, value)
+                compare(selected, &cmp.op, value)
             }
         }
     }
@@ -90,7 +84,7 @@ impl Table {
 
 // COLUMN OPERATION
 impl Table {
-    pub(crate) fn add_column(
+    pub(super) fn add_column(
         &mut self,
         columns: Vec<(&str, DataType, &[Constraint])>,
     ) -> Result<(), DomainError> {
@@ -198,7 +192,7 @@ impl Table {
         Ok(())
     }
 
-    pub(crate) fn delete_column(&mut self, columns: Vec<String>) -> Result<usize, DomainError> {
+    pub(super) fn delete_column(&mut self, columns: Vec<String>) -> Result<usize, DomainError> {
         let mut indexes = Vec::new();
 
         // VALIDASI + RESOLVE
@@ -234,7 +228,7 @@ impl Table {
         self.schema.columns()
     }
 
-    pub(crate) fn columns_selected(&self, columns: &[&str]) -> Result<Vec<Column>, DomainError> {
+    pub(super) fn columns_selected(&self, columns: &[&str]) -> Result<Vec<Column>, DomainError> {
         let mut selected = Vec::new();
         for name in columns {
             let index = self.schema.resolve_column(name)?;
@@ -246,7 +240,7 @@ impl Table {
 
 // ROW OPERATION FINAL
 impl Table {
-    pub(crate) fn insert(
+    pub(super) fn insert(
         &mut self,
         columns: Option<Vec<String>>,
         rows: Vec<Vec<Value>>,
@@ -284,7 +278,7 @@ impl Table {
         Ok(count)
     }
 
-    pub(crate) fn insert_row(&mut self, values: Vec<(String, Value)>) -> Result<(), DomainError> {
+    pub(super) fn insert_row(&mut self, values: Vec<(String, Value)>) -> Result<(), DomainError> {
         let columns = self.schema.columns();
         let mut buffer: Vec<Option<Value>> = vec![None; columns.len()];
 
@@ -343,7 +337,7 @@ impl Table {
         Ok(())
     }
 
-    pub(crate) fn update_rows(
+    pub(super) fn update_rows(
         &mut self,
         assignments: Vec<(String, Value)>,
         expr: &Expr,
@@ -428,7 +422,7 @@ impl Table {
         Ok(target_indices.len())
     }
 
-    pub(crate) fn delete_rows(&mut self, expr: &Expr) -> Result<usize, DomainError> {
+    pub(super) fn delete_rows(&mut self, expr: &Expr) -> Result<usize, DomainError> {
         let resolved = self.schema.bind_expr(expr)?;
         let indices = self.find_matching_rows(&resolved);
 
@@ -438,14 +432,14 @@ impl Table {
 
 // Lookup API for application layer (read-only)
 impl Table {
-    pub(crate) fn select_all(&self) -> Vec<Vec<String>> {
+    pub(super) fn select_all(&self) -> Vec<Vec<String>> {
         self.rows
             .iter()
             .map(|row| row.values().iter().map(|v| v.to_display_str()).collect())
             .collect()
     }
 
-    pub(crate) fn select_where(&self, conditions: &Expr) -> Result<Vec<Vec<String>>, DomainError> {
+    pub(super) fn select_where(&self, conditions: &Expr) -> Result<Vec<Vec<String>>, DomainError> {
         let expr = self.schema.bind_expr(conditions)?;
 
         let result = self
@@ -458,7 +452,7 @@ impl Table {
         Ok(result)
     }
 
-    pub(crate) fn select_columns(&self, columns: &[&str]) -> Result<Vec<Vec<String>>, DomainError> {
+    pub(super) fn select_columns(&self, columns: &[&str]) -> Result<Vec<Vec<String>>, DomainError> {
         //  resolve index kolom (sekali di awal)
         let indices: Vec<usize> = columns
             .iter()
@@ -480,7 +474,7 @@ impl Table {
         Ok(result)
     }
 
-    pub(crate) fn select_columns_where(
+    pub(super) fn select_columns_where(
         &self,
         conditions: &Expr,
         columns: &[&str],

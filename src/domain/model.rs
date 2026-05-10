@@ -16,7 +16,7 @@ impl DataType {
     pub fn matches_type(&self, value: &Value) -> bool {
         self.coerce_value(value.clone()).is_ok()
     }
-    pub fn enum_of(values: Vec<String>) -> Self {
+    pub(crate) fn enum_of(values: Vec<String>) -> Self {
         if values.is_empty() {
             panic!("Enum must not be empty");
         }
@@ -30,7 +30,7 @@ impl DataType {
         Self::Enum { variants: set }
     }
 
-    pub fn coerce_value(&self, value: Value) -> Result<Value, DomainError> {
+    pub(crate) fn coerce_value(&self, value: Value) -> Result<Value, DomainError> {
         match (self, value) {
             // INT
             (DataType::Int, Value::Int(v)) => Ok(Value::Int(v)),

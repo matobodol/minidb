@@ -21,7 +21,7 @@ impl Schema {
         &self.columns
     }
 
-    pub(crate) fn add_column(
+    pub(super) fn add_column(
         &mut self,
         columns: Vec<(&str, DataType, &[Constraint])>,
     ) -> Result<(), DomainError> {
