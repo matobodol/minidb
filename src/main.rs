@@ -4,8 +4,8 @@ use minidb::{
 };
 
 fn main() {
-    let storage_path = FileStorage::new("data"); // sesuaikan
-    let mut app = AppManager::new(storage_path);
+    let storage = FileStorage::new("data");
+    let mut app = AppManager::new(storage);
 
     repl::start(&mut app);
 }
