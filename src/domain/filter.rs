@@ -20,7 +20,7 @@ pub enum ResolvedExpr {
     Not(Box<ResolvedExpr>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum CompareOp {
     Eq,
     Ne,

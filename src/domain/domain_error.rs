@@ -12,7 +12,7 @@ pub enum DomainError {
     DuplicateEnumVariant,
     InvalidEnumDefault,
     InvalidDefaultType,
-    NotAllowedDeleteColumnUniq(String),
+    NotAllowedDeleteColumnPrimaryKey(String),
     NotAllowedNull,
     NotUniqValue(String),
 
@@ -26,5 +26,8 @@ pub enum DomainError {
     // COLUMN
     ColumnNotFound(String),
     DuplicateColumnName(String),
+    DuplicateUpdateColumn,
     ColumnValueMismatch,
+    EmptyEnumVariant,
+    InvalidEnumValue,
 }

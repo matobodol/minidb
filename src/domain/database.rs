@@ -72,13 +72,13 @@ impl Database {
         let tbl = self.table_mut(table)?;
         tbl.add_column(columns)
     }
-    pub fn delete_column(
+    pub fn delete_columns(
         &mut self,
         table: &str,
         column: Vec<String>,
     ) -> Result<usize, DomainError> {
         let tbl = self.table_mut(table)?;
-        tbl.delete_column(column)
+        tbl.delete_columns(column)
     }
 }
 

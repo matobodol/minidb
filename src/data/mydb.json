@@ -1,6 +1,6 @@
 {
   "tables": {
-    "rdb": {
+    "users": {
       "schema": {
         "columns": [
           {
@@ -28,8 +28,8 @@
             "data_type": {
               "Enum": {
                 "variants": [
-                  "lulus",
-                  "gagal"
+                  "gagal",
+                  "lulus"
                 ]
               }
             },
@@ -55,7 +55,14 @@
             },
             "constraint": []
           }
-        ]
+        ],
+        "index": {
+          "name": 1,
+          "kejuruan": 2,
+          "state": 3,
+          "id": 0,
+          "gender": 4
+        }
       },
       "rows": [
         {
@@ -67,7 +74,7 @@
               "Str": "jono"
             },
             {
-              "Str": "Teknin informatika"
+              "Str": "Teknik Informatika"
             },
             {
               "Enum": {
@@ -87,10 +94,10 @@
               "Int": 2
             },
             {
-              "Str": "jini"
+              "Str": "jani"
             },
             {
-              "Str": "Teknin informatika"
+              "Str": "Seni budaya"
             },
             {
               "Enum": {
@@ -110,7 +117,7 @@
               "Int": 3
             },
             {
-              "Str": "jene"
+              "Str": "jini"
             },
             "Null",
             {

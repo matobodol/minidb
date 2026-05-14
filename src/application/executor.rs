@@ -121,7 +121,7 @@ pub fn execute<S: DatabaseStorage>(
         Command::AlterTableDropColumn { table, columns } => {
             let timer = QueryTimer::start();
             let affected = columns.len();
-            app.with_db_mut(|db| db.delete_column(&table, columns))?;
+            app.with_db_mut(|db| db.delete_columns(&table, columns))?;
             Ok(QueryInfo::AlterDropColumn {
                 affected,
                 elapsed_ms: timer.elapsed_ms(),

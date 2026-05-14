@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -9,14 +9,17 @@ use crate::domain::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schema {
     columns: Vec<Column>,
+    index: HashMap<String, usize>,
 }
 
 impl Schema {
     pub(super) fn new() -> Self {
         Self {
             columns: Vec::new(),
+            index: HashMap::new(),
         }
     }
+
     pub(super) fn columns(&self) -> &[Column] {
         &self.columns
     }
@@ -25,39 +28,53 @@ impl Schema {
         &mut self,
         columns: Vec<(&str, DataType, &[Constraint])>,
     ) -> Result<(), DomainError> {
+        // detect duplicate existing + incoming
+        let mut seen: HashSet<&str> = self.columns.iter().map(|c| c.name()).collect();
+
         let mut new_columns = Vec::with_capacity(columns.len());
 
-        let mut seen = HashSet::new();
-
-        for (name, data_type, constraint) in columns {
+        for (name, data_type, constraints) in columns {
             if !seen.insert(name) {
                 return Err(DomainError::DuplicateColumnName(name.to_string()));
-            };
+            }
 
-            new_columns.push(Column::new(name, data_type, constraint.to_vec()));
+            new_columns.push(Column::new(name, data_type, constraints.to_vec()));
         }
 
-        for column in self.columns() {
-            if !seen.insert(column.name()) {
-                return Err(DomainError::DuplicateColumnName(column.name().to_string()));
-            };
+        // append + update index
+        for column in new_columns {
+            let idx = self.columns.len();
+
+            self.index.insert(column.name().to_string(), idx);
+
+            self.columns.push(column);
         }
 
-        self.columns.extend(new_columns);
         Ok(())
     }
 
-    pub(super) fn remove_at(&mut self, index: usize) {
-        self.columns.remove(index);
+    pub(super) fn remove_many(&mut self, indexes: &[usize]) {
+        for &i in indexes.iter().rev() {
+            self.columns.remove(i);
+        }
+
+        self.index.clear();
+
+        for (i, col) in self.columns.iter().enumerate() {
+            self.index.insert(col.name().to_string(), i);
+        }
     }
 }
 
+//
 // VALIDATOR
+//
 impl Schema {
     pub(super) fn bind_expr(&self, expr: &Expr) -> Result<ResolvedExpr, DomainError> {
         match expr {
             Expr::Compare(cmp) => {
                 let index = self.resolve_column(&cmp.column)?;
+
                 let column = &self.columns[index];
 
                 let value = match cmp.op {
@@ -71,9 +88,7 @@ impl Schema {
                 };
 
                 Ok(ResolvedExpr::Compare(ResolvedCompare::new(
-                    index,
-                    cmp.op.clone(),
-                    value,
+                    index, cmp.op, value,
                 )))
             }
 
@@ -99,11 +114,10 @@ impl Schema {
         }
     }
 
-    /// Validates column existence and returns its index
     pub(super) fn resolve_column(&self, name: &str) -> Result<usize, DomainError> {
-        self.columns
-            .iter()
-            .position(|column| column.name() == name)
+        self.index
+            .get(name)
+            .copied()
             .ok_or(DomainError::ColumnNotFound(name.to_string()))
     }
 }

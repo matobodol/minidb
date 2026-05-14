@@ -26,6 +26,7 @@ impl Table {
         }
 
         let mut keep = vec![true; self.rows.len()];
+
         for &i in &indices {
             keep[i] = false;
         }
@@ -35,37 +36,41 @@ impl Table {
             .drain(..)
             .enumerate()
             .filter(|(i, _)| keep[*i])
-            .map(|(_, v)| v)
+            .map(|(_, row)| row)
             .collect();
 
         indices.len()
     }
 
-    fn find_matching_rows(&self, resolvedexpr: &ResolvedExpr) -> Vec<usize> {
+    fn find_matching_rows(&self, resolved_expr: &ResolvedExpr) -> Vec<usize> {
         self.rows
             .iter()
             .enumerate()
-            .filter(|(_, row)| self.row_matches(row, resolvedexpr))
+            .filter(|(_, row)| Self::row_matches(row, resolved_expr))
             .map(|(i, _)| i)
-            // .rev()
-            .collect::<Vec<_>>()
+            .collect()
     }
 
-    fn row_matches(&self, row: &Row, expr: &ResolvedExpr) -> bool {
+    fn row_matches(row: &Row, expr: &ResolvedExpr) -> bool {
         match expr {
             ResolvedExpr::Compare(cmp) => Self::compare_row(row, cmp),
-            ResolvedExpr::And(xs) => xs.iter().all(|x| self.row_matches(row, x)),
-            ResolvedExpr::Or(xs) => xs.iter().any(|x| self.row_matches(row, x)),
-            ResolvedExpr::Not(inner) => !self.row_matches(row, inner),
+
+            ResolvedExpr::And(xs) => xs.iter().all(|x| Self::row_matches(row, x)),
+
+            ResolvedExpr::Or(xs) => xs.iter().any(|x| Self::row_matches(row, x)),
+
+            ResolvedExpr::Not(inner) => !Self::row_matches(row, inner),
         }
     }
 
     fn compare_row(row: &Row, cmp: &ResolvedCompare) -> bool {
-        let selected = &row.values()[cmp.index]; // index sudah resolved
+        let selected = &row.values()[cmp.index];
 
         match cmp.op {
             CompareOp::IsNull => matches!(selected, Value::Null),
+
             CompareOp::IsNotNull => !matches!(selected, Value::Null),
+
             _ => {
                 let Some(ref value) = cmp.value else {
                     return false;
@@ -78,35 +83,46 @@ impl Table {
 }
 
 // COLUMN OPERATION
+use std::collections::HashSet;
+
 impl Table {
     pub(super) fn add_column(
         &mut self,
         columns: Vec<(&str, DataType, &[Constraint])>,
     ) -> Result<(), DomainError> {
         // =====================
-        // GLOBAL CHECK (existing schema)
+        // GLOBAL CHECK
         // =====================
-        let mut has_pk = self
-            .columns()
-            .iter()
-            .any(|c| c.has_constraint(|c| matches!(c, Constraint::PrimaryKey)));
+        let mut has_pk = self.columns().iter().any(|c| c.is_primary_key());
 
-        let mut has_increment = self
-            .columns()
-            .iter()
-            .any(|c| c.has_constraint(|c| matches!(c, Constraint::Increment)));
+        let mut has_increment = self.columns().iter().any(|c| c.is_increment());
 
-        for (_name, dtype, constraints) in &columns {
-            // =====================
-            // PRIMARY KEY
-            // =====================
-            if constraints
+        // =====================
+        // VALIDATE NEW COLUMNS
+        // =====================
+        for (_, dtype, constraints) in &columns {
+            let is_pk = constraints
                 .iter()
-                .any(|c| matches!(c, Constraint::PrimaryKey))
-            {
+                .any(|c| matches!(c, Constraint::PrimaryKey));
+
+            let is_increment = constraints
+                .iter()
+                .any(|c| matches!(c, Constraint::Increment));
+
+            let default = constraints.iter().find_map(|c| {
+                if let Constraint::Default(v) = c {
+                    Some(v)
+                } else {
+                    None
+                }
+            });
+
+            // PRIMARY KEY
+            if is_pk {
                 if has_pk {
                     return Err(DomainError::MultiplePrimaryKey);
                 }
+
                 has_pk = true;
 
                 if constraints
@@ -117,62 +133,49 @@ impl Table {
                 }
             }
 
-            // =====================
-            // INCREMENT
-            // =====================
-            if constraints
-                .iter()
-                .any(|c| matches!(c, Constraint::Increment))
-            {
+            // AUTO INCREMENT
+            if is_increment {
                 if has_increment {
                     return Err(DomainError::MultipleAutoIncrement);
                 }
+
                 has_increment = true;
 
                 match dtype {
                     DataType::Int | DataType::Float => {}
-                    _ => return Err(DomainError::InvalidAutoIncrementType),
+                    _ => {
+                        return Err(DomainError::InvalidAutoIncrementType);
+                    }
                 }
             }
 
-            // =====================
             // ENUM VALIDATION
-            // =====================
             if let DataType::Enum { variants } = dtype {
-                // unique variants
-                let mut uniq = std::collections::HashSet::new();
-                for v in variants {
-                    if !uniq.insert(v) {
+                let mut uniq = HashSet::new();
+
+                for variant in variants {
+                    if !uniq.insert(variant) {
                         return Err(DomainError::DuplicateEnumVariant);
                     }
                 }
 
-                // default harus ada di enum
-                if let Some(Constraint::Default(Value::Enum { value })) = constraints
-                    .iter()
-                    .find(|c| matches!(c, Constraint::Default(_)))
-                {
+                if let Some(Value::Enum { value }) = default {
                     if !variants.contains(value) {
                         return Err(DomainError::InvalidEnumDefault);
                     }
                 }
             }
 
-            // =====================
             // DEFAULT TYPE CHECK
-            // =====================
-            if let Some(Constraint::Default(val)) = constraints
-                .iter()
-                .find(|c| matches!(c, Constraint::Default(_)))
-            {
-                if !dtype.matches_type(val) {
+            if let Some(default) = default {
+                if !dtype.matches_type(default) {
                     return Err(DomainError::InvalidDefaultType);
                 }
             }
         }
 
         // =====================
-        // APPLY (kalau semua valid)
+        // APPLY
         // =====================
         let added = columns.len();
 
@@ -187,31 +190,46 @@ impl Table {
         Ok(())
     }
 
-    pub(super) fn delete_column(&mut self, columns: Vec<String>) -> Result<usize, DomainError> {
-        let mut indexes = Vec::new();
+    pub(super) fn delete_columns(&mut self, columns: Vec<String>) -> Result<usize, DomainError> {
+        use std::collections::BTreeSet;
 
-        // VALIDASI + RESOLVE
+        let mut indexes = BTreeSet::new();
+
+        // =====================
+        // VALIDATE + RESOLVE
+        // =====================
         for name in &columns {
             let index = self.schema.resolve_column(name)?;
+
             let column = &self.schema.columns()[index];
 
-            if column.has_constraint(|c| matches!(c, Constraint::Unique)) {
-                return Err(DomainError::NotAllowedDeleteColumnUniq(name.to_string()));
+            if column.is_primary_key() {
+                return Err(DomainError::NotAllowedDeleteColumnPrimaryKey(
+                    name.to_string(),
+                ));
             }
 
-            indexes.push(index);
+            indexes.insert(index);
         }
 
-        indexes.sort();
-        indexes.dedup();
-        indexes.reverse();
-
-        // MUTASI
-        for &index in &indexes {
-            self.schema.remove_at(index);
-            self.rows.iter_mut().for_each(|row| row.remove_at(index));
+        // =====================
+        // MUTATE ROWS
+        // =====================
+        for &index in indexes.iter().rev() {
+            for row in &mut self.rows {
+                row.remove_at(index);
+            }
         }
-        // hapus meta
+
+        // =====================
+        // MUTATE SCHEMA
+        // =====================
+        self.schema
+            .remove_many(&indexes.iter().copied().collect::<Vec<_>>());
+
+        // =====================
+        // META CLEANUP
+        // =====================
         for name in columns {
             self.meta.remove_increment(&name);
         }
@@ -243,80 +261,58 @@ impl Table {
     ) -> Result<usize, DomainError> {
         let count = rows.len();
 
+        let indexes = match columns {
+            Some(cols) => cols
+                .iter()
+                .map(|name| self.schema.resolve_column(name))
+                .collect::<Result<Vec<_>, _>>()?,
+            None => (0..self.columns().len()).collect(),
+        };
+
         for values in rows {
-            let columns = columns.as_ref();
-            let schema_columns = self.columns();
+            if values.len() != indexes.len() {
+                return Err(DomainError::ColumnValueMismatch);
+            }
 
-            let pairs: Vec<(String, Value)> = match columns {
-                Some(cols) => {
-                    if cols.len() != values.len() {
-                        return Err(DomainError::ColumnValueMismatch);
-                    }
-
-                    cols.iter().cloned().zip(values.into_iter()).collect()
-                }
-
-                None => {
-                    if values.len() != schema_columns.len() {
-                        return Err(DomainError::ColumnValueMismatch);
-                    }
-
-                    schema_columns
-                        .iter()
-                        .map(|c| c.name().to_string())
-                        .zip(values.into_iter())
-                        .collect()
-                }
-            };
+            let pairs = indexes.iter().copied().zip(values.into_iter()).collect();
 
             self.insert_row(pairs)?;
         }
+
         Ok(count)
     }
 
-    pub(super) fn insert_row(&mut self, values: Vec<(String, Value)>) -> Result<(), DomainError> {
+    pub(super) fn insert_row(&mut self, values: Vec<(usize, Value)>) -> Result<(), DomainError> {
         let columns = self.schema.columns();
+
         let mut buffer: Vec<Option<Value>> = vec![None; columns.len()];
 
-        // =====================
-        // MAP INPUT → BUFFER
-        // =====================
-        for (name, value) in values {
-            let index = self.schema.resolve_column(&name)?;
-
+        for (index, value) in values {
             if buffer[index].is_some() {
-                return Err(DomainError::InsertDuplicateValuesInColumn(name.to_string()));
+                return Err(DomainError::InsertDuplicateValuesInColumn(
+                    columns[index].name().to_string(),
+                ));
             }
 
             buffer[index] = Some(value);
         }
 
-        // =====================
-        // BUILD ROW (ENFORCE)
-        // =====================
         let row_values: Vec<Value> = columns
             .iter()
             .enumerate()
             .map(|(index, column)| {
-                let mut input = buffer[index].clone();
+                let mut input = buffer[index].take();
 
-                // =====================
-                // INCREMENT
-                // =====================
                 if input.is_none() && column.is_increment() {
                     input = Some(Value::Int(self.meta.next_increment(column.name())));
                 }
 
-                // iterator untuk UNIQUE check (optional dipakai di enforce)
-                let existing_iter = self.rows.iter().map(|r| &r.values()[index]);
+                let existing = self.rows.iter().map(|r| &r.values()[index]);
 
-                column.enforce(input, existing_iter)
+                column.enforce(input, existing)
             })
             .collect::<Result<_, _>>()?;
 
-        // =====================
-        // SYNC INCREMENT
-        // =====================
         for (index, column) in columns.iter().enumerate() {
             if column.is_increment() {
                 if let Value::Int(v) = row_values[index] {
@@ -325,9 +321,6 @@ impl Table {
             }
         }
 
-        // =====================
-        // INSERT
-        // =====================
         self.rows.push(Row::new(row_values));
 
         Ok(())
@@ -338,21 +331,16 @@ impl Table {
         assignments: Vec<(String, Value)>,
         expr: &Expr,
     ) -> Result<usize, DomainError> {
-        let columns = self.schema.columns().to_vec();
+        let columns = self.schema.columns();
 
-        // =====================
-        // RESOLVE CONDITIONS
-        // =====================
+        // resolve where
         let resolved = self.schema.bind_expr(expr)?;
 
-        // =====================
-        // FIND TARGET ROWS
-        // =====================
         let target_indices: Vec<usize> = self
             .rows
             .iter()
             .enumerate()
-            .filter(|(_, row)| self.row_matches(row, &resolved))
+            .filter(|(_, row)| Self::row_matches(row, &resolved))
             .map(|(i, _)| i)
             .collect();
 
@@ -360,40 +348,31 @@ impl Table {
             return Ok(0);
         }
 
-        // =====================
-        // PREPARE ASSIGNMENT MAP
-        // =====================
+        // assignment map
         let mut assign_map = std::collections::HashMap::new();
 
         for (col, val) in assignments {
             let idx = self.schema.resolve_column(&col)?;
-            assign_map.insert(idx, val);
+
+            if assign_map.insert(idx, val).is_some() {
+                return Err(DomainError::DuplicateUpdateColumn);
+            }
         }
 
-        // =====================
-        // BUILD NEW ROWS (NO COMMIT YET)
-        // =====================
         let snapshot = &self.rows;
         let mut pending_updates = Vec::new();
 
         for &row_idx in &target_indices {
             let old_row = &snapshot[row_idx];
 
-            // clone current row into mutable buffer
-            let mut buffer: Vec<Option<Value>> =
-                old_row.values().iter().cloned().map(Some).collect();
-
-            // apply assignments
-            for (&col_idx, val) in &assign_map {
-                buffer[col_idx] = Some(val.clone());
-            }
-
-            // validate full row
             let new_row_values: Vec<Value> = columns
                 .iter()
                 .enumerate()
                 .map(|(col_idx, column)| {
-                    let input = buffer[col_idx].take();
+                    let input = assign_map
+                        .get(&col_idx)
+                        .cloned()
+                        .or_else(|| Some(old_row.values()[col_idx].clone()));
 
                     let existing_iter = snapshot
                         .iter()
@@ -408,9 +387,6 @@ impl Table {
             pending_updates.push((row_idx, new_row_values));
         }
 
-        // =====================
-        // COMMIT
-        // =====================
         for (row_idx, row) in pending_updates {
             self.rows[row_idx] = Row::new(row);
         }
@@ -443,7 +419,7 @@ impl Table {
         let result = self
             .rows
             .iter()
-            .filter(|row| self.row_matches(row, &expr))
+            .filter(|row| Self::row_matches(row, &expr))
             .map(|row| row.values().iter().collect())
             .collect();
 
@@ -487,7 +463,7 @@ impl Table {
         let result = self
             .rows
             .iter()
-            .filter(|row| self.row_matches(row, &expr))
+            .filter(|row| Self::row_matches(row, &expr))
             .map(|row| {
                 projection_indices
                     .iter()

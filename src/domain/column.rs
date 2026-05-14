@@ -50,10 +50,11 @@ impl Column {
     ) -> Option<T> {
         self.constraint.iter().find_map(extractor)
     }
-    pub(super) fn default_value(&self) -> Option<Value> {
-        self.get_constraint(|c| {
+
+    pub(super) fn default_value(&self) -> Option<&Value> {
+        self.constraint.iter().find_map(|c| {
             if let Constraint::Default(v) = c {
-                Some(v.clone())
+                Some(v)
             } else {
                 None
             }
@@ -70,6 +71,10 @@ impl Column {
         self.has_constraint(|c| matches!(c, Constraint::Unique | Constraint::PrimaryKey))
     }
 
+    pub(crate) fn is_primary_key(&self) -> bool {
+        self.has_constraint(|c| matches!(c, Constraint::PrimaryKey))
+    }
+
     pub(crate) fn is_increment(&self) -> bool {
         self.has_constraint(|c| matches!(c, Constraint::Increment))
     }
@@ -80,36 +85,27 @@ impl Column {
         input: Option<Value>,
         mut existing_values: impl Iterator<Item = &'a Value>,
     ) -> Result<Value, DomainError> {
-        // =====================
-        // RESOLVE VALUE
-        // =====================
+        let nullable = self.is_nullable();
+        let unique = self.is_unique();
+        let default = self.default_value();
+
         let v = match input {
             Some(v) => self.data_type.coerce_value(v)?,
 
             None => {
-                // DEFAULT
-                if let Some(default) = self.default_value() {
-                    self.data_type.coerce_value(default)?
-                }
-                // NOT NULL
-                else if !self.is_nullable() {
+                if let Some(default) = default {
+                    self.data_type.coerce_value(default.clone())?
+                } else if !nullable {
                     return Err(DomainError::NotAllowedNull);
-                }
-                // NULL
-                else {
+                } else {
                     Value::Null
                 }
             }
         };
 
-        // =====================
-        // UNIQUE / PRIMARY KEY
-        // =====================
-        if self.is_unique() {
-            if !matches!(v, Value::Null) {
-                if existing_values.any(|e| e == &v) {
-                    return Err(DomainError::NotUniqValue(self.name.clone()));
-                }
+        if unique && !matches!(v, Value::Null) {
+            if existing_values.any(|e| e == &v) {
+                return Err(DomainError::NotUniqValue(self.name.clone()));
             }
         }
 

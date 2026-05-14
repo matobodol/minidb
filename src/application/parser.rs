@@ -289,10 +289,13 @@ fn parse_single_column(tokens: &[String]) -> Result<(String, DataType, Vec<Const
             i += 1;
         }
 
-        DataType::enum_of(variants)
+        DataType::enum_of(variants)?
     } else {
-        let dt = parse_datatype(tokens.get(i))?;
+        let dt = parse_datatype(tokens.get(i))
+            .map_err(|_| AppError::InvalidCommand("invalid datatype".into()))?;
+
         i += 1;
+
         dt
     };
 

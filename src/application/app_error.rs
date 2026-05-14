@@ -1,3 +1,17 @@
+use crate::{domain::DomainError, storage::StorageError};
+
+impl From<DomainError> for AppError {
+    fn from(err: DomainError) -> Self {
+        map_domain_error(err)
+    }
+}
+
+impl From<StorageError> for AppError {
+    fn from(err: StorageError) -> Self {
+        map_storage_error(err)
+    }
+}
+
 #[derive(Debug)]
 pub enum AppError {
     InvalidSyntax,
@@ -27,7 +41,6 @@ impl fmt::Display for AppError {
     }
 }
 
-use crate::{domain::DomainError, storage::StorageError};
 pub fn map_storage_error(err: StorageError) -> AppError {
     match err {
         StorageError::DatabaseAlreadyExists => AppError::DatabaseAlreadyExists,
@@ -47,6 +60,11 @@ pub fn map_storage_error(err: StorageError) -> AppError {
 
 pub fn map_domain_error(err: DomainError) -> AppError {
     match err {
+        DomainError::EmptyEnumVariant => AppError::InvalidOperation("Empty enum variant".into()),
+        DomainError::InvalidEnumValue => AppError::InvalidOperation("Invalid enum value".into()),
+        DomainError::DuplicateUpdateColumn => {
+            AppError::InvalidOperation("Duplicate assignment Update Column".into())
+        }
         DomainError::InvalidOperation(msg) => AppError::InvalidOperation(msg),
         DomainError::ColumnValueMismatch => {
             AppError::InvalidOperation("Column value mis match".into())
@@ -58,7 +76,7 @@ pub fn map_domain_error(err: DomainError) -> AppError {
         }
 
         // ===== CONSTRAINT =====
-        DomainError::NotAllowedDeleteColumnUniq(col) => AppError::InvalidOperation(format!(
+        DomainError::NotAllowedDeleteColumnPrimaryKey(col) => AppError::InvalidOperation(format!(
             "Column '{}' cannot be deleted because it has UNIQUE constraint",
             col
         )),
