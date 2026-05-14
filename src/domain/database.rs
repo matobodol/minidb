@@ -119,54 +119,54 @@ impl Database {
 
 // Lookup API for application layer (read-only)
 impl Database {
-    pub fn select_all(&self, table: &str) -> Result<Vec<Vec<String>>, DomainError> {
+    pub fn columns(&self, table: &str) -> Result<Vec<&Column>, DomainError> {
         let tbl = self.table(table)?;
-
-        Ok(tbl.select_all())
-    }
-
-    pub fn select_where(
-        &self,
-        table: &str,
-        conditions: &Expr,
-    ) -> Result<Vec<Vec<String>>, DomainError> {
-        let tbl = self.table(table)?;
-
-        tbl.select_where(conditions)
-    }
-
-    pub fn select_columns(
-        &self,
-        table: &str,
-        columns: &[&str],
-    ) -> Result<Vec<Vec<String>>, DomainError> {
-        let tbl = self.table(table)?;
-
-        tbl.select_columns(columns)
-    }
-
-    pub fn select_columns_where(
-        &self,
-        table: &str,
-        conditions: &Expr,
-        columns: &[&str],
-    ) -> Result<Vec<Vec<String>>, DomainError> {
-        let tbl = self.table(table)?;
-
-        tbl.select_columns_where(conditions, columns)
-    }
-
-    pub fn columns(&self, table: &str) -> Result<Vec<Column>, DomainError> {
-        let tbl = self.table(table)?;
-        Ok(tbl.columns().to_vec())
+        Ok(tbl.columns().iter().collect())
     }
 
     pub fn selected_columns(
         &self,
         table: &str,
         columns: &[&str],
-    ) -> Result<Vec<Column>, DomainError> {
+    ) -> Result<Vec<&Column>, DomainError> {
         let tbl = self.table(table)?;
-        Ok(tbl.columns_selected(columns)?)
+        tbl.columns_selected(columns)
+    }
+
+    pub fn lookup_all(&self, table: &str) -> Result<Vec<Vec<&Value>>, DomainError> {
+        let tbl = self.table(table)?;
+
+        Ok(tbl.lookup_all())
+    }
+
+    pub fn lookup_where(
+        &self,
+        table: &str,
+        conditions: &Expr,
+    ) -> Result<Vec<Vec<&Value>>, DomainError> {
+        let tbl = self.table(table)?;
+
+        tbl.lookup_where(conditions)
+    }
+
+    pub fn lookup_columns(
+        &self,
+        table: &str,
+        columns: &[&str],
+    ) -> Result<Vec<Vec<&Value>>, DomainError> {
+        let tbl = self.table(table)?;
+
+        tbl.lookup_columns(columns)
+    }
+
+    pub fn lookup_columns_where(
+        &self,
+        table: &str,
+        conditions: &Expr,
+        columns: &[&str],
+    ) -> Result<Vec<Vec<&Value>>, DomainError> {
+        let tbl = self.table(table)?;
+
+        tbl.lookup_columns_where(conditions, columns)
     }
 }

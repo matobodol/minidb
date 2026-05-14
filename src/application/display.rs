@@ -3,9 +3,9 @@ use comfy_table::{
     presets::{UTF8_FULL, UTF8_FULL_CONDENSED},
 };
 
-use crate::domain::{Column, Constraint, DataType};
+use crate::domain::{Column, Constraint, DataType, Value};
 
-pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) -> usize {
+pub fn print_lookup(columns: &[&Column], rows: Vec<Vec<&Value>>) -> usize {
     let mut table = Table::new();
 
     table
@@ -17,58 +17,53 @@ pub fn print_select(columns: Vec<Column>, rows: Vec<Vec<String>>) -> usize {
     // =====================
     let header = columns
         .iter()
-        .map(|c| {
-            let mut cell = Cell::new(c.name());
+        .map(|column| {
+            let mut cell = Cell::new(column.name());
 
-            if c.has_constraint(|c| matches!(c, Constraint::PrimaryKey)) {
+            if column.has_constraint(|c| matches!(c, Constraint::PrimaryKey)) {
                 cell = cell.fg(Color::Red);
-            } else if c.has_constraint(|c| matches!(c, Constraint::Unique)) {
+            } else if column.has_constraint(|c| matches!(c, Constraint::Unique)) {
                 cell = cell.fg(Color::Green);
             }
 
             cell.add_attribute(Attribute::Bold)
                 .set_alignment(CellAlignment::Center)
         })
-        .collect::<Vec<Cell>>();
+        .collect::<Vec<_>>();
 
     table.set_header(header);
 
     // =====================
     // ROWS
     // =====================
-    for row in &rows {
-        let cells: Vec<Cell> = row
+    let count = rows.len();
+
+    for row in rows {
+        let cells = row
             .iter()
             .enumerate()
             .map(|(i, value)| {
-                let align = match columns[i].data_type() {
-                    DataType::Int | DataType::Float => CellAlignment::Right,
-                    DataType::Str => CellAlignment::Left,
-                    DataType::Enum { .. } => CellAlignment::Center,
+                let alignment = match value {
+                    Value::Null => CellAlignment::Center,
+                    _ => match columns[i].data_type() {
+                        DataType::Int | DataType::Float => CellAlignment::Right,
+                        DataType::Str => CellAlignment::Left,
+                        DataType::Enum { .. } => CellAlignment::Center,
+                    },
                 };
 
-                if value == "-" {
-                    Cell::new(value).set_alignment(CellAlignment::Center)
-                } else {
-                    Cell::new(value).set_alignment(align)
-                }
+                Cell::new(*value).set_alignment(alignment)
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         table.add_row(cells);
     }
 
     println!("{table}");
 
-    // =====================
-    // FOOTER
-    // =====================
-    let count = rows.len();
-
     count
 }
-
-pub fn print_describe(columns: Vec<Column>) {
+pub fn print_describe(columns: &[&Column]) {
     let mut table = Table::new();
 
     table
@@ -86,26 +81,33 @@ pub fn print_describe(columns: Vec<Column>) {
                 .add_attribute(Attribute::Bold)
                 .set_alignment(CellAlignment::Center)
         })
-        .collect::<Vec<Cell>>();
+        .collect::<Vec<_>>();
 
     table.set_header(headers);
 
     // =====================
     // ROWS
     // =====================
-    for col in columns {
+    for col in columns.iter().copied() {
+        // =====================
+        // FIELD
+        // =====================
         let field = col.name().to_string();
 
+        // =====================
+        // TYPE
+        // =====================
         let dtype = match col.data_type() {
             DataType::Int => "int".to_string(),
             DataType::Float => "float".to_string(),
             DataType::Str => "string".to_string(),
 
             DataType::Enum { variants } => {
-                let mut v: Vec<_> = variants.iter().cloned().collect();
-                v.sort();
+                let mut values: Vec<_> = variants.iter().cloned().collect();
 
-                format!("enum({})", v.join(","))
+                values.sort();
+
+                format!("enum({})", values.join(","))
             }
         };
 
@@ -136,12 +138,12 @@ pub fn print_describe(columns: Vec<Column>) {
         let default = col
             .get_constraint(|c| {
                 if let Constraint::Default(v) = c {
-                    Some(v.to_display_str())
+                    Some(v.to_string())
                 } else {
                     None
                 }
             })
-            .unwrap_or("".to_string());
+            .unwrap_or_default();
 
         // =====================
         // EXTRA
@@ -153,7 +155,7 @@ pub fn print_describe(columns: Vec<Column>) {
         };
 
         // =====================
-        // COLOR
+        // COLOR FIELD
         // =====================
         let mut field_cell = Cell::new(field);
 

@@ -87,14 +87,16 @@ pub enum Value {
     Null,
 }
 
-impl Value {
-    pub(crate) fn to_display_str(&self) -> String {
+use std::fmt;
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Int(v) => v.to_string(),
-            Value::Str(v) => v.clone(),
-            Value::Float(v) => v.to_string(),
-            Value::Enum { value } => value.clone(),
-            Value::Null => "-".to_string(),
+            Value::Int(v) => write!(f, "{v}"),
+            Value::Float(v) => write!(f, "{v}"),
+            Value::Str(v) => write!(f, "{v}"),
+            Value::Enum { value } => write!(f, "{value}"),
+            Value::Null => write!(f, "-"),
         }
     }
 }

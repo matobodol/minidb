@@ -170,7 +170,7 @@ pub fn execute<S: DatabaseStorage>(
         // ===== SELECT =====
         Command::SelectAll { table } => {
             let timer = QueryTimer::start();
-            let rows = app.select_all(&table)?;
+            let rows = app.lookup_all(&table)?;
 
             Ok(QueryInfo::Select {
                 rows,
@@ -180,7 +180,7 @@ pub fn execute<S: DatabaseStorage>(
         Command::SelectColumns { table, columns } => {
             let timer = QueryTimer::start();
             let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            let rows = app.select_columns(&table, &cols)?;
+            let rows = app.lookup_columns(&table, &cols)?;
 
             Ok(QueryInfo::Select {
                 rows,
@@ -189,7 +189,7 @@ pub fn execute<S: DatabaseStorage>(
         }
         Command::SelectWhere { table, conditions } => {
             let timer = QueryTimer::start();
-            let rows = app.select_where(&table, &conditions)?;
+            let rows = app.lookup_where(&table, &conditions)?;
 
             Ok(QueryInfo::Select {
                 rows,
@@ -204,7 +204,7 @@ pub fn execute<S: DatabaseStorage>(
         } => {
             let timer = QueryTimer::start();
             let cols: Vec<&str> = columns.iter().map(|s| s.as_str()).collect();
-            let rows = app.select_where_columns(&table, &conditions, &cols)?;
+            let rows = app.lookup_columns_where(&table, &conditions, &cols)?;
 
             Ok(QueryInfo::Select {
                 rows,

@@ -2,7 +2,7 @@ use std::usize;
 
 use crate::{
     application::{
-        app_error::AppError, map_domain_error, map_storage_error, print_describe, print_select,
+        app_error::AppError, map_domain_error, map_storage_error, print_describe, print_lookup,
     },
     domain::{Database, DomainError, Expr},
     storage::DatabaseStorage,
@@ -148,45 +148,54 @@ impl<S: DatabaseStorage> AppManager<S> {
 // Lookup API for application layer (read-only)
 impl<S: DatabaseStorage> AppManager<S> {
     pub fn describe(&self, table: &str) -> Result<usize, AppError> {
-        let columns = self.with_db(|tbl| tbl.columns(table))?;
+        self.with_db(|db| {
+            let columns = db.columns(table)?;
+            let count = columns.len();
 
-        let count = columns.len();
+            print_describe(&columns);
 
-        print_describe(columns);
-
-        Ok(count)
+            Ok(count)
+        })
     }
 
-    pub fn select_all(&self, table: &str) -> Result<usize, AppError> {
-        let rows = self.with_db(|tbl| tbl.select_all(table))?;
-        let columns = self.with_db(|tbl| tbl.columns(table))?;
+    pub fn lookup_all(&self, table: &str) -> Result<usize, AppError> {
+        self.with_db(|db| {
+            let rows = db.lookup_all(table)?;
+            let columns = db.columns(table)?;
 
-        Ok(print_select(columns, rows))
+            Ok(print_lookup(&columns, rows))
+        })
     }
 
-    pub fn select_where(&self, table: &str, conditions: &Expr) -> Result<usize, AppError> {
-        let rows = self.with_db(|tbl| tbl.select_where(table, conditions))?;
-        let columns = self.with_db(|tbl| tbl.columns(table))?;
+    pub fn lookup_where(&self, table: &str, conditions: &Expr) -> Result<usize, AppError> {
+        self.with_db(|db| {
+            let rows = db.lookup_where(table, conditions)?;
+            let columns = db.columns(table)?;
 
-        Ok(print_select(columns, rows))
+            Ok(print_lookup(&columns, rows))
+        })
     }
 
-    pub fn select_columns(&self, table: &str, columns: &[&str]) -> Result<usize, AppError> {
-        let rows = self.with_db(|tbl| tbl.select_columns(table, columns))?;
-        let columns = self.with_db(|tbl| tbl.selected_columns(table, columns))?;
+    pub fn lookup_columns(&self, table: &str, columns: &[&str]) -> Result<usize, AppError> {
+        self.with_db(|db| {
+            let rows = db.lookup_columns(table, columns)?;
+            let columns = db.selected_columns(table, columns)?;
 
-        Ok(print_select(columns, rows))
+            Ok(print_lookup(&columns, rows))
+        })
     }
 
-    pub fn select_where_columns(
+    pub fn lookup_columns_where(
         &self,
         table: &str,
         conditions: &Expr,
         columns: &[&str],
     ) -> Result<usize, AppError> {
-        let rows = self.with_db(|tbl| tbl.select_columns_where(table, conditions, columns))?;
-        let columns = self.with_db(|tbl| tbl.selected_columns(table, columns))?;
+        self.with_db(|db| {
+            let rows = db.lookup_columns_where(table, conditions, columns)?;
+            let selected_columns = db.selected_columns(table, columns)?;
 
-        Ok(print_select(columns, rows))
+            Ok(print_lookup(&selected_columns, rows))
+        })
     }
 }

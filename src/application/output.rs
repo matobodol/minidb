@@ -18,12 +18,12 @@ impl QueryTimer {
 
 #[derive(Debug)]
 pub enum QueryInfo {
+    Silent,
     Select { rows: usize, elapsed_ms: f64 },
     Insert { affected: usize, elapsed_ms: f64 },
     Update { affected: usize, elapsed_ms: f64 },
     Delete { affected: usize, elapsed_ms: f64 },
     Describe { columns: usize, elapsed_ms: f64 },
-    Silent,
 
     CreateDatabase { name: String, elapsed_ms: f64 },
     DropDatabase { name: String, elapsed_ms: f64 },

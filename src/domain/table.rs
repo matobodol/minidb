@@ -7,7 +7,6 @@ use crate::domain::{
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Table {
-    id_uniq: Option<String>,
     schema: Schema,
     rows: Vec<Row>,
     meta: TableMeta,
@@ -15,7 +14,6 @@ pub struct Table {
 impl Table {
     pub(super) fn new() -> Self {
         Self {
-            id_uniq: None,
             schema: Schema::new(),
             rows: Vec::new(),
             meta: TableMeta::default(),
@@ -63,9 +61,6 @@ impl Table {
     }
 
     fn compare_row(row: &Row, cmp: &ResolvedCompare) -> bool {
-        // let Some(selected) = row.values().get(cmp.index) else {
-        //     return false;
-        // };
         let selected = &row.values()[cmp.index]; // index sudah resolved
 
         match cmp.op {
@@ -228,13 +223,14 @@ impl Table {
         self.schema.columns()
     }
 
-    pub(super) fn columns_selected(&self, columns: &[&str]) -> Result<Vec<Column>, DomainError> {
-        let mut selected = Vec::new();
-        for name in columns {
-            let index = self.schema.resolve_column(name)?;
-            selected.push(self.columns()[index].clone());
-        }
-        Ok(selected)
+    pub(super) fn columns_selected(&self, names: &[&str]) -> Result<Vec<&Column>, DomainError> {
+        names
+            .iter()
+            .map(|name| {
+                let idx = self.schema.resolve_column(name)?;
+                Ok(&self.columns()[idx])
+            })
+            .collect()
     }
 }
 
@@ -432,69 +428,62 @@ impl Table {
 
 // Lookup API for application layer (read-only)
 impl Table {
-    pub(super) fn select_all(&self) -> Vec<Vec<String>> {
+    pub(super) fn lookup_all(&self) -> Vec<Vec<&Value>> {
         self.rows
             .iter()
-            .map(|row| row.values().iter().map(|v| v.to_display_str()).collect())
+            .map(|row| row.values().iter().collect())
             .collect()
     }
+}
 
-    pub(super) fn select_where(&self, conditions: &Expr) -> Result<Vec<Vec<String>>, DomainError> {
+impl Table {
+    pub(super) fn lookup_where(&self, conditions: &Expr) -> Result<Vec<Vec<&Value>>, DomainError> {
         let expr = self.schema.bind_expr(conditions)?;
 
         let result = self
             .rows
             .iter()
             .filter(|row| self.row_matches(row, &expr))
-            .map(|row| row.values().iter().map(|v| v.to_display_str()).collect())
+            .map(|row| row.values().iter().collect())
             .collect();
 
         Ok(result)
     }
+}
 
-    pub(super) fn select_columns(&self, columns: &[&str]) -> Result<Vec<Vec<String>>, DomainError> {
-        //  resolve index kolom (sekali di awal)
+impl Table {
+    pub(super) fn lookup_columns(&self, columns: &[&str]) -> Result<Vec<Vec<&Value>>, DomainError> {
         let indices: Vec<usize> = columns
             .iter()
             .map(|name| self.schema.resolve_column(name))
             .collect::<Result<_, _>>()?;
 
-        //  ambil value sesuai index
         let result = self
             .rows
             .iter()
-            .map(|row| {
-                indices
-                    .iter()
-                    .map(|&i| row.values()[i].to_display_str())
-                    .collect::<Vec<String>>()
-            })
+            .map(|row| indices.iter().map(|&i| &row.values()[i]).collect())
             .collect();
 
         Ok(result)
     }
+}
 
-    pub(super) fn select_columns_where(
+impl Table {
+    pub(super) fn lookup_columns_where(
         &self,
         conditions: &Expr,
         columns: &[&str],
-    ) -> Result<Vec<Vec<String>>, DomainError> {
-        // =====================
-        // RESOLVE PROJECTION
-        // =====================
+    ) -> Result<Vec<Vec<&Value>>, DomainError> {
+        // resolve projection
         let projection_indices: Vec<usize> = columns
             .iter()
             .map(|name| self.schema.resolve_column(name))
             .collect::<Result<_, _>>()?;
 
-        // =====================
-        // BIND WHERE EXPR
-        // =====================
+        // bind filter
         let expr = self.schema.bind_expr(conditions)?;
 
-        // =====================
-        // FILTER + PROJECT
-        // =====================
+        // filter + project
         let result = self
             .rows
             .iter()
@@ -502,8 +491,8 @@ impl Table {
             .map(|row| {
                 projection_indices
                     .iter()
-                    .map(|&i| row.values()[i].to_display_str())
-                    .collect::<Vec<String>>()
+                    .map(|&i| &row.values()[i])
+                    .collect()
             })
             .collect();
 

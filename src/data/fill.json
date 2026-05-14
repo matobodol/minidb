@@ -1,29 +1,25 @@
 {
   "tables": {
-    "users": {
-      "id_uniq": null,
-      "schema": {
-        "columns": []
-      },
-      "rows": [],
-      "meta": {
-        "increments": {}
-      }
-    },
     "rdb": {
-      "id_uniq": null,
       "schema": {
         "columns": [
           {
             "name": "id",
             "data_type": "Int",
             "constraint": [
-              "PrimaryKey",
-              "Increment"
+              "Increment",
+              "PrimaryKey"
             ]
           },
           {
             "name": "name",
+            "data_type": "Str",
+            "constraint": [
+              "NotNull"
+            ]
+          },
+          {
+            "name": "kejuruan",
             "data_type": "Str",
             "constraint": []
           },
@@ -48,17 +44,12 @@
             ]
           },
           {
-            "name": "jurusan",
-            "data_type": "Str",
-            "constraint": []
-          },
-          {
             "name": "gender",
             "data_type": {
               "Enum": {
                 "variants": [
-                  "L",
-                  "P"
+                  "P",
+                  "L"
                 ]
               }
             },
@@ -70,18 +61,41 @@
         {
           "values": [
             {
+              "Int": 1
+            },
+            {
+              "Str": "jono"
+            },
+            {
+              "Str": "Teknin informatika"
+            },
+            {
+              "Enum": {
+                "value": "lulus"
+              }
+            },
+            {
+              "Enum": {
+                "value": "L"
+              }
+            }
+          ]
+        },
+        {
+          "values": [
+            {
               "Int": 2
             },
             {
               "Str": "jini"
             },
             {
-              "Enum": {
-                "value": "gagal"
-              }
+              "Str": "Teknin informatika"
             },
             {
-              "Str": "Telekomunikasi dan informasi"
+              "Enum": {
+                "value": "lulus"
+              }
             },
             {
               "Enum": {
@@ -96,15 +110,13 @@
               "Int": 3
             },
             {
-              "Str": "jani"
+              "Str": "jene"
             },
+            "Null",
             {
               "Enum": {
-                "value": "lulus"
+                "value": "gagal"
               }
-            },
-            {
-              "Str": "Tata boga"
             },
             {
               "Enum": {
@@ -119,128 +131,17 @@
               "Int": 4
             },
             {
-              "Str": "jono"
-            },
-            {
-              "Enum": {
-                "value": "gagal"
-              }
-            },
-            {
-              "Str": "Teknik mesin Berat"
-            },
-            {
-              "Enum": {
-                "value": "L"
-              }
-            }
-          ]
-        },
-        {
-          "values": [
-            {
-              "Int": 1
-            },
-            {
-              "Str": "jeni"
-            },
-            {
-              "Enum": {
-                "value": "lulus"
-              }
-            },
-            {
-              "Str": "Kesenian dan budaya"
-            },
-            {
-              "Enum": {
-                "value": "P"
-              }
-            }
-          ]
-        },
-        {
-          "values": [
-            {
-              "Int": 5
-            },
-            {
               "Str": "joni"
             },
-            {
-              "Enum": {
-                "value": "lulus"
-              }
-            },
-            {
-              "Str": "Rekayasa perangkat lunak"
-            },
-            {
-              "Enum": {
-                "value": "L"
-              }
-            }
-          ]
-        },
-        {
-          "values": [
-            {
-              "Int": 6
-            },
-            {
-              "Str": "jana"
-            },
+            "Null",
             {
               "Enum": {
                 "value": "gagal"
               }
             },
-            "Null",
             {
               "Enum": {
                 "value": "L"
-              }
-            }
-          ]
-        },
-        {
-          "values": [
-            {
-              "Int": 7
-            },
-            {
-              "Str": "jojon"
-            },
-            {
-              "Enum": {
-                "value": "lulus"
-              }
-            },
-            "Null",
-            {
-              "Enum": {
-                "value": "L"
-              }
-            }
-          ]
-        },
-        {
-          "values": [
-            {
-              "Int": 8
-            },
-            {
-              "Str": "jejen sarijen"
-            },
-            {
-              "Enum": {
-                "value": "gagal"
-              }
-            },
-            "Null",
-            {
-              "Enum": {
-                "value": "P"
               }
             }
           ]
@@ -248,7 +149,7 @@
       ],
       "meta": {
         "increments": {
-          "id": 9
+          "id": 5
         }
       }
     }

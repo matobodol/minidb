@@ -5,15 +5,6 @@ use crate::{
     storage::DatabaseStorage,
 };
 
-pub fn print_welcome() {
-    println!("╔══════════════════════════════════╗");
-    println!("║      MINI DB TOY SQL ENGINE      ║");
-    println!("║              v0.0.1              ║");
-    println!("╚══════════════════════════════════╝");
-    println!("Type 'exit' to quit");
-    println!();
-}
-
 pub fn start<S>(app: &mut AppManager<S>)
 where
     S: DatabaseStorage,
@@ -24,9 +15,9 @@ where
     loop {
         // PROMPT
         let prompt = if let Ok(db_name) = app.show_current_database() {
-            format!("[minidb:{}] > ", db_name)
+            format!("[minisql:{}] > ", db_name)
         } else {
-            "minidb > ".to_string()
+            "minisql > ".to_string()
         };
 
         let line = rl.readline(&prompt);
@@ -142,4 +133,13 @@ pub fn tokenize(input: &str) -> Vec<String> {
     }
 
     tokens
+}
+
+pub fn print_welcome() {
+    println!("╔══════════════════════════════════╗");
+    println!("║      MINI DB TOY SQL ENGINE      ║");
+    println!("║              v0.0.1              ║");
+    println!("╚══════════════════════════════════╝");
+    println!("Type 'exit' to quit");
+    println!();
 }
