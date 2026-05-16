@@ -254,7 +254,37 @@ impl Table {
 
 // ROW OPERATION FINAL
 impl Table {
-    pub(super) fn insert(
+    fn build_validated_row(
+        &mut self,
+        inputs: Vec<Option<Value>>,
+        exclude_row: Option<usize>,
+    ) -> Result<Vec<Value>, DomainError> {
+        let columns = self.schema.columns();
+
+        columns
+            .iter()
+            .enumerate()
+            .map(|(index, column)| {
+                let mut input = inputs[index].clone();
+
+                // auto increment hanya untuk INSERT
+                if exclude_row.is_none() && input.is_none() && column.is_increment() {
+                    input = Some(Value::Int(self.meta.next_increment(column.name())));
+                }
+
+                let existing = self
+                    .rows
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, _)| Some(*i) != exclude_row)
+                    .map(|(_, row)| &row.values()[index]);
+
+                column.enforce(input, existing)
+            })
+            .collect()
+    }
+
+    pub(super) fn insert_rows(
         &mut self,
         columns: Option<Vec<String>>,
         rows: Vec<Vec<Value>>,
@@ -266,6 +296,7 @@ impl Table {
                 .iter()
                 .map(|name| self.schema.resolve_column(name))
                 .collect::<Result<Vec<_>, _>>()?,
+
             None => (0..self.columns().len()).collect(),
         };
 
@@ -276,44 +307,34 @@ impl Table {
 
             let pairs = indexes.iter().copied().zip(values.into_iter()).collect();
 
-            self.insert_row(pairs)?;
+            self.insert_resolved_row(pairs)?;
         }
 
         Ok(count)
     }
 
-    pub(super) fn insert_row(&mut self, values: Vec<(usize, Value)>) -> Result<(), DomainError> {
-        let columns = self.schema.columns();
+    pub(super) fn insert_resolved_row(
+        &mut self,
+        values: Vec<(usize, Value)>,
+    ) -> Result<(), DomainError> {
+        let column_len = self.schema.columns().len();
 
-        let mut buffer: Vec<Option<Value>> = vec![None; columns.len()];
+        let mut buffer: Vec<Option<Value>> = vec![None; column_len];
 
         for (index, value) in values {
             if buffer[index].is_some() {
                 return Err(DomainError::InsertDuplicateValuesInColumn(
-                    columns[index].name().to_string(),
+                    self.schema.columns()[index].name().to_string(),
                 ));
             }
 
             buffer[index] = Some(value);
         }
 
-        let row_values: Vec<Value> = columns
-            .iter()
-            .enumerate()
-            .map(|(index, column)| {
-                let mut input = buffer[index].take();
+        let row_values = self.build_validated_row(buffer, None)?;
 
-                if input.is_none() && column.is_increment() {
-                    input = Some(Value::Int(self.meta.next_increment(column.name())));
-                }
-
-                let existing = self.rows.iter().map(|r| &r.values()[index]);
-
-                column.enforce(input, existing)
-            })
-            .collect::<Result<_, _>>()?;
-
-        for (index, column) in columns.iter().enumerate() {
+        // sync increment metadata
+        for (index, column) in self.schema.columns().iter().enumerate() {
             if column.is_increment() {
                 if let Value::Int(v) = row_values[index] {
                     self.meta.sync_increment(column.name(), v);
@@ -331,9 +352,6 @@ impl Table {
         assignments: Vec<(String, Value)>,
         expr: &Expr,
     ) -> Result<usize, DomainError> {
-        let columns = self.schema.columns();
-
-        // resolve where
         let resolved = self.schema.bind_expr(expr)?;
 
         let target_indices: Vec<usize> = self
@@ -348,7 +366,6 @@ impl Table {
             return Ok(0);
         }
 
-        // assignment map
         let mut assign_map = std::collections::HashMap::new();
 
         for (col, val) in assignments {
@@ -359,32 +376,27 @@ impl Table {
             }
         }
 
-        let snapshot = &self.rows;
         let mut pending_updates = Vec::new();
 
         for &row_idx in &target_indices {
-            let old_row = &snapshot[row_idx];
+            let old_values = self.rows[row_idx].values().to_vec();
 
-            let new_row_values: Vec<Value> = columns
+            let inputs: Vec<Option<Value>> = self
+                .schema
+                .columns()
                 .iter()
                 .enumerate()
-                .map(|(col_idx, column)| {
-                    let input = assign_map
+                .map(|(col_idx, _)| {
+                    assign_map
                         .get(&col_idx)
                         .cloned()
-                        .or_else(|| Some(old_row.values()[col_idx].clone()));
-
-                    let existing_iter = snapshot
-                        .iter()
-                        .enumerate()
-                        .filter(|(i, _)| *i != row_idx)
-                        .map(|(_, r)| &r.values()[col_idx]);
-
-                    column.enforce(input, existing_iter)
+                        .or_else(|| Some(old_values[col_idx].clone()))
                 })
-                .collect::<Result<_, _>>()?;
+                .collect();
 
-            pending_updates.push((row_idx, new_row_values));
+            let new_row = self.build_validated_row(inputs, Some(row_idx))?;
+
+            pending_updates.push((row_idx, new_row));
         }
 
         for (row_idx, row) in pending_updates {

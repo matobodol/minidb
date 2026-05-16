@@ -92,7 +92,7 @@ impl Database {
     ) -> Result<usize, DomainError> {
         let tbl = self.table_mut(table)?;
 
-        tbl.insert(columns, rows)
+        tbl.insert_rows(columns, rows)
     }
 
     pub(crate) fn update_rows(

@@ -58,10 +58,10 @@
         ],
         "index": {
           "name": 1,
+          "gender": 4,
           "kejuruan": 2,
           "state": 3,
-          "id": 0,
-          "gender": 4
+          "id": 0
         }
       },
       "rows": [
@@ -119,7 +119,9 @@
             {
               "Str": "jini"
             },
-            "Null",
+            {
+              "Str": "Elektronik"
+            },
             {
               "Enum": {
                 "value": "gagal"
@@ -140,7 +142,9 @@
             {
               "Str": "joni"
             },
-            "Null",
+            {
+              "Str": "Arsitek"
+            },
             {
               "Enum": {
                 "value": "gagal"
@@ -152,11 +156,34 @@
               }
             }
           ]
+        },
+        {
+          "values": [
+            {
+              "Int": 5
+            },
+            {
+              "Str": "jejen"
+            },
+            {
+              "Str": "Multimedia"
+            },
+            {
+              "Enum": {
+                "value": "lulus"
+              }
+            },
+            {
+              "Enum": {
+                "value": "P"
+              }
+            }
+          ]
         }
       ],
       "meta": {
         "increments": {
-          "id": 5
+          "id": 6
         }
       }
     }
