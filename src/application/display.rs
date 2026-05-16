@@ -92,22 +92,22 @@ pub fn print_describe(columns: &[&Column]) {
         // =====================
         // FIELD
         // =====================
-        let field = col.name().to_string();
+        let field = col.name();
 
         // =====================
         // TYPE
         // =====================
         let dtype = match col.data_type() {
-            DataType::Int => "int".to_string(),
-            DataType::Float => "float".to_string(),
-            DataType::Str => "string".to_string(),
+            DataType::Int => "int",
+            DataType::Float => "float",
+            DataType::Str => "string",
 
             DataType::Enum { variants } => {
                 let mut values: Vec<_> = variants.iter().cloned().collect();
 
                 values.sort();
 
-                format!("enum({})", values.join(","))
+                &format!("enum({})", values.join(","))
             }
         };
 

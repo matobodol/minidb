@@ -1,5 +1,5 @@
 use crate::{
-    application::{AppError, Command},
+    application::{AppError, Command, map_domain_error},
     domain::{CompareExpr, CompareOp, Constraint, DataType, Expr, Value},
 };
 
@@ -149,7 +149,7 @@ fn parse_multi_values(tokens: &[String]) -> Result<Vec<Vec<Value>>, AppError> {
                         return Err(AppError::InvalidCommand("empty row".into()));
                     }
 
-                    rows.push(std::mem::take(&mut current)); // 🔥 no clone
+                    rows.push(std::mem::take(&mut current));
                 }
             }
 
@@ -278,7 +278,7 @@ fn parse_single_column(tokens: &[String]) -> Result<(String, DataType, Vec<Const
 
         while let Some(t) = tokens.get(i) {
             if t == ")" {
-                i += 1; // 🔥 INI WAJIB (skip ')')
+                i += 1; // INI WAJIB (skip ')')
                 break;
             }
 
@@ -289,7 +289,7 @@ fn parse_single_column(tokens: &[String]) -> Result<(String, DataType, Vec<Const
             i += 1;
         }
 
-        DataType::enum_of(variants)?
+        DataType::enum_of(variants).map_err(map_domain_error)?
     } else {
         let dt = parse_datatype(tokens.get(i))
             .map_err(|_| AppError::InvalidCommand("invalid datatype".into()))?;
@@ -729,9 +729,6 @@ fn parse_update(tokens: Vec<String>) -> Result<Command, AppError> {
         }
     }
 
-    // =====================
-    // PARSE CONDITIONS (OPTIONAL)
-    // =====================
     // =====================
     // PARSE CONDITIONS (OPTIONAL)
     // =====================

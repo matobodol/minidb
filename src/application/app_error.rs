@@ -1,16 +1,16 @@
 use crate::{domain::DomainError, storage::StorageError};
 
-impl From<DomainError> for AppError {
-    fn from(err: DomainError) -> Self {
-        map_domain_error(err)
-    }
-}
-
-impl From<StorageError> for AppError {
-    fn from(err: StorageError) -> Self {
-        map_storage_error(err)
-    }
-}
+// impl From<DomainError> for AppError {
+//     fn from(err: DomainError) -> Self {
+//         map_domain_error(err)
+//     }
+// }
+//
+// impl From<StorageError> for AppError {
+//     fn from(err: StorageError) -> Self {
+//         map_storage_error(err)
+//     }
+// }
 
 #[derive(Debug)]
 pub enum AppError {
@@ -65,7 +65,6 @@ pub fn map_domain_error(err: DomainError) -> AppError {
         DomainError::DuplicateUpdateColumn => {
             AppError::InvalidOperation("Duplicate assignment Update Column".into())
         }
-        DomainError::InvalidOperation(msg) => AppError::InvalidOperation(msg),
         DomainError::ColumnValueMismatch => {
             AppError::InvalidOperation("Column value mis match".into())
         }

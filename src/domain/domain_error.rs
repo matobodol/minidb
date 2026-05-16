@@ -1,6 +1,5 @@
 #[derive(Debug)]
 pub enum DomainError {
-    InvalidOperation(String),
     // SCHEMA
     TypeMismatch,
 
@@ -8,11 +7,14 @@ pub enum DomainError {
     MultiplePrimaryKey,
     InvalidPrimaryKeyNullable,
     MultipleAutoIncrement,
+
     InvalidAutoIncrementType,
     DuplicateEnumVariant,
+
     InvalidEnumDefault,
     InvalidDefaultType,
     NotAllowedDeleteColumnPrimaryKey(String),
+
     NotAllowedNull,
     NotUniqValue(String),
 

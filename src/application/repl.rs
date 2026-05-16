@@ -98,6 +98,23 @@ pub fn tokenize(input: &str) -> Vec<String> {
             }
 
             // =====================
+            // MULTI-CHAR OPERATORS
+            // =====================
+            '>' | '<' | '!' if !in_string => {
+                if !current.trim().is_empty() {
+                    tokens.push(current.trim().to_string());
+                    current.clear();
+                }
+
+                if let Some('=') = chars.peek() {
+                    tokens.push(format!("{}=", c));
+                    chars.next(); // consume '='
+                } else {
+                    tokens.push(c.to_string());
+                }
+            }
+
+            // =====================
             // DELIMITER (luar string)
             // =====================
             '(' | ')' | ',' | '=' if !in_string => {
