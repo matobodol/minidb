@@ -3,6 +3,7 @@ use crate::{
     domain::{CompareExpr, CompareOp, Constraint, DataType, Expr, Value},
 };
 
+// Case-insensitive keywords, case-sensitive identifiers
 const KEYWORDS: &[&str] = &[
     "select",
     "from",
@@ -17,6 +18,7 @@ const KEYWORDS: &[&str] = &[
     "drop",
     "table",
     "database",
+    "databases",
     "show",
     "use",
     "alter",
@@ -52,10 +54,6 @@ pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
     if tokens.is_empty() {
         return Err(AppError::InvalidCommand("empty input".into()));
     }
-
-    // =====================
-    // NORMALISASI COMMAND
-    // =====================
 
     if tokens.is_empty() {
         return Err(AppError::InvalidCommand("empty input".into()));
@@ -97,8 +95,7 @@ fn parse_debug(tokens: Vec<String>) -> Result<Command, AppError> {
 fn normalize_command(cmd: &str) -> String {
     match cmd.to_lowercase().as_str() {
         "exit" | "quit" | "/q" | ":q" => "exit".into(),
-        "use" | "use database" => "use".into(),
-        _ => cmd.to_lowercase(),
+        _ => cmd.into(),
     }
 }
 
@@ -646,7 +643,7 @@ fn parse_value(token: &str) -> Result<Value, AppError> {
 
 // use fill
 fn parse_use(tokens: Vec<String>) -> Result<Command, AppError> {
-    if tokens.len() < 1 {
+    if tokens.len() != 2 {
         return Err(AppError::InvalidCommand("invalid use".into()));
     } else if tokens.len() == 2 {
         let db = tokens[1].clone();
