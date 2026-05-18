@@ -57,11 +57,11 @@
           }
         ],
         "index": {
-          "name": 1,
           "gender": 4,
           "kejuruan": 2,
-          "state": 3,
-          "id": 0
+          "id": 0,
+          "name": 1,
+          "state": 3
         }
       },
       "rows": [
@@ -179,11 +179,32 @@
               }
             }
           ]
+        },
+        {
+          "values": [
+            {
+              "Int": 6
+            },
+            {
+              "Str": "jojon"
+            },
+            "Null",
+            {
+              "Enum": {
+                "value": "gagal"
+              }
+            },
+            {
+              "Enum": {
+                "value": "L"
+              }
+            }
+          ]
         }
       ],
       "meta": {
         "increments": {
-          "id": 6
+          "id": 7
         }
       }
     }

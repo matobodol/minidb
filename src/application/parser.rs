@@ -3,6 +3,51 @@ use crate::{
     domain::{CompareExpr, CompareOp, Constraint, DataType, Expr, Value},
 };
 
+const KEYWORDS: &[&str] = &[
+    "select",
+    "from",
+    "where",
+    "insert",
+    "into",
+    "values",
+    "update",
+    "set",
+    "delete",
+    "create",
+    "drop",
+    "table",
+    "database",
+    "show",
+    "use",
+    "alter",
+    "add",
+    "column",
+    "describe",
+    "and",
+    "or",
+    "not",
+    "is",
+    "null",
+    //constraint
+    "notnull",
+    "primarykey",
+    "increment",
+    "default",
+];
+
+fn normalize_keywords(tokens: Vec<String>) -> Vec<String> {
+    tokens
+        .into_iter()
+        .map(|t| {
+            if KEYWORDS.iter().any(|kw| t.eq_ignore_ascii_case(kw)) {
+                t.to_ascii_lowercase()
+            } else {
+                t
+            }
+        })
+        .collect()
+}
+
 pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
     if tokens.is_empty() {
         return Err(AppError::InvalidCommand("empty input".into()));
@@ -11,6 +56,13 @@ pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
     // =====================
     // NORMALISASI COMMAND
     // =====================
+
+    if tokens.is_empty() {
+        return Err(AppError::InvalidCommand("empty input".into()));
+    }
+
+    let tokens = normalize_keywords(tokens);
+
     let first = normalize_command(&tokens[0]);
 
     match first.as_str() {
@@ -378,17 +430,29 @@ fn parse_select(tokens: Vec<String>) -> Result<Command, AppError> {
         .ok_or(AppError::InvalidCommand("missing table".into()))?
         .clone();
 
+    let tail = &tokens[from_pos + 2..];
+
     // =====================
     // HANDLE "*"
     // =====================
     if tokens[1] == "*" {
-        if tokens.len() > from_pos + 2 && tokens[from_pos + 2] == "where" {
-            let conditions = parse_expr(&tokens[from_pos + 3..])?;
+        match tail {
+            [] => {
+                return Ok(Command::SelectAll { table });
+            }
 
-            return Ok(Command::SelectWhere { table, conditions });
+            [kw, rest @ ..] if kw == "where" => {
+                let conditions = parse_expr(rest)?;
+
+                return Ok(Command::SelectWhere { table, conditions });
+            }
+
+            _ => {
+                return Err(AppError::InvalidCommand(
+                    "unexpected token after table".into(),
+                ));
+            }
         }
-
-        return Ok(Command::SelectAll { table });
     }
 
     // =====================
@@ -397,22 +461,25 @@ fn parse_select(tokens: Vec<String>) -> Result<Command, AppError> {
     let columns = parse_columns(&tokens[1..from_pos])?;
 
     // =====================
-    // WHERE
+    // HANDLE TAIL
     // =====================
-    if tokens.len() > from_pos + 2 && tokens[from_pos + 2] == "where" {
-        let conditions = parse_expr(&tokens[from_pos + 3..])?;
+    match tail {
+        [] => Ok(Command::SelectColumns { table, columns }),
 
-        return Ok(Command::SelectColumnsWhere {
-            table,
-            columns,
-            conditions,
-        });
+        [kw, rest @ ..] if kw == "where" => {
+            let conditions = parse_expr(rest)?;
+
+            Ok(Command::SelectColumnsWhere {
+                table,
+                columns,
+                conditions,
+            })
+        }
+
+        _ => Err(AppError::InvalidCommand(
+            "unexpected token after table".into(),
+        )),
     }
-
-    // =====================
-    // TANPA WHERE
-    // =====================
-    Ok(Command::SelectColumns { table, columns })
 }
 
 fn parse_columns(tokens: &[String]) -> Result<Vec<String>, AppError> {
