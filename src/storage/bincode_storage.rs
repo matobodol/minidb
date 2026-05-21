@@ -6,15 +6,15 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct JsonStorage {
+pub struct BincodeStorage {
     root: PathBuf,
     loaded: HashMap<String, Database>,
 }
 
-impl JsonStorage {
+impl BincodeStorage {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         let path = path.into();
-        std::fs::create_dir_all(&path).ok(); // infra concern
+        std::fs::create_dir_all(&path).ok();
 
         Self {
             root: path,
@@ -23,17 +23,18 @@ impl JsonStorage {
     }
 
     fn db_path(&self, name: &str) -> PathBuf {
-        self.root.join(format!("{name}.json"))
+        self.root.join(format!("{name}.bin"))
     }
 }
 
-impl Storage for JsonStorage {
+impl Storage for BincodeStorage {
     fn save(&mut self, name: &str) -> Result<(), StorageError> {
         let db = self.loaded.get(name).ok_or(StorageError::NotLoaded)?;
         let path = self.db_path(name);
 
-        let content = serde_json::to_string_pretty(db)?;
-        fs::write(path, content)?;
+        let bytes = bincode::serialize(db)?;
+        fs::write(path, bytes)?;
+
         Ok(())
     }
 
@@ -46,8 +47,8 @@ impl Storage for JsonStorage {
 
         let db = Database::new();
 
-        let content = serde_json::to_string_pretty(&db)?;
-        fs::write(&path, content)?;
+        let bytes = bincode::serialize(&db)?;
+        fs::write(&path, bytes)?;
 
         Ok(())
     }
@@ -63,21 +64,23 @@ impl Storage for JsonStorage {
             return Err(StorageError::DatabaseNotFound);
         }
 
-        std::fs::remove_file(path)?;
+        fs::remove_file(path)?;
 
         Ok(())
     }
 
     fn load(&mut self, name: &str) -> Result<(), StorageError> {
         if self.loaded.contains_key(name) {
-            return Ok(()); // idempotent
+            return Ok(());
         }
 
         let path = self.db_path(name);
-        let content = fs::read_to_string(&path)?;
-        let db: Database = serde_json::from_str(&content)?;
+
+        let bytes = fs::read(&path)?;
+        let db: Database = bincode::deserialize(&bytes)?;
 
         self.loaded.insert(name.to_string(), db);
+
         Ok(())
     }
 
@@ -85,8 +88,9 @@ impl Storage for JsonStorage {
         let db = self.loaded.remove(name).ok_or(StorageError::NotLoaded)?;
 
         let path = self.db_path(name);
-        let content = serde_json::to_string_pretty(&db)?;
-        fs::write(&path, content)?;
+
+        let bytes = bincode::serialize(&db)?;
+        fs::write(&path, bytes)?;
 
         Ok(())
     }
@@ -111,10 +115,13 @@ impl Storage for JsonStorage {
         entries
             .filter_map(|e| e.ok())
             .filter_map(|e| {
-                e.path()
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .map(String::from)
+                let path = e.path();
+
+                if path.extension()? != "bin" {
+                    return None;
+                }
+
+                path.file_stem().and_then(|s| s.to_str()).map(String::from)
             })
             .collect()
     }

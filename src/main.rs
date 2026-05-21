@@ -1,10 +1,12 @@
 use minidb::{
     application::{AppManager, repl},
-    storage::FileStorage,
+    storage::BincodeStorage,
+    // storage::JsonStorage,
 };
 
 fn main() {
-    let storage = FileStorage::new("data");
+    // let storage = JsonStorage::new("data");
+    let storage = BincodeStorage::new("data");
     let mut app = AppManager::new(storage);
 
     repl::start(&mut app);

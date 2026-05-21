@@ -1,17 +1,5 @@
 use crate::{domain::DomainError, storage::StorageError};
 
-// impl From<DomainError> for AppError {
-//     fn from(err: DomainError) -> Self {
-//         map_domain_error(err)
-//     }
-// }
-//
-// impl From<StorageError> for AppError {
-//     fn from(err: StorageError) -> Self {
-//         map_storage_error(err)
-//     }
-// }
-
 #[derive(Debug)]
 pub enum AppError {
     InvalidSyntax,
@@ -52,6 +40,10 @@ pub fn map_storage_error(err: StorageError) -> AppError {
         StorageError::Io(_) => AppError::InternalError, // IO failure ≠ user fault
 
         StorageError::Serde(e) => AppError::InvalidOperation(format!(
+            "failed to read database file (corrupted or incompatible): {}",
+            e
+        )),
+        StorageError::Bincode(e) => AppError::InvalidOperation(format!(
             "failed to read database file (corrupted or incompatible): {}",
             e
         )),

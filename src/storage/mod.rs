@@ -6,3 +6,6 @@ pub use storage_error::*;
 
 pub mod file_json;
 pub use file_json::*;
+
+pub mod bincode_storage;
+pub use bincode_storage::*;
