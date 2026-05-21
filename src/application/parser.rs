@@ -17,6 +17,7 @@ const KEYWORDS: &[&str] = &[
     "create",
     "drop",
     "table",
+    "tables",
     "database",
     "databases",
     "show",
@@ -50,11 +51,15 @@ fn normalize_keywords(tokens: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
-    if tokens.is_empty() {
-        return Err(AppError::InvalidCommand("empty input".into()));
+fn normalize_command(cmd: &str) -> String {
+    match cmd.to_lowercase().as_str() {
+        "exit" | "quit" | "/q" | ":q" => "exit".into(),
+        "help" | "/h" | ":?" => "help".into(),
+        _ => cmd.into(),
     }
+}
 
+pub fn parse(tokens: Vec<String>) -> Result<Command, AppError> {
     if tokens.is_empty() {
         return Err(AppError::InvalidCommand("empty input".into()));
     }
@@ -89,13 +94,6 @@ fn parse_debug(tokens: Vec<String>) -> Result<Command, AppError> {
             name: name.to_string(),
         }),
         _ => Err(AppError::InvalidCommand("Not database selected".into())),
-    }
-}
-
-fn normalize_command(cmd: &str) -> String {
-    match cmd.to_lowercase().as_str() {
-        "exit" | "quit" | "/q" | ":q" => "exit".into(),
-        _ => cmd.into(),
     }
 }
 
