@@ -600,6 +600,7 @@ fn parse_expr(tokens: &[String]) -> Result<Expr, AppError> {
 
     build_expr_tree(exprs, ops)
 }
+
 fn build_expr_tree(mut exprs: Vec<Expr>, ops: Vec<&str>) -> Result<Expr, AppError> {
     if exprs.is_empty() {
         return Err(AppError::InvalidCommand("empty expression".into()));
@@ -611,7 +612,12 @@ fn build_expr_tree(mut exprs: Vec<Expr>, ops: Vec<&str>) -> Result<Expr, AppErro
         current = match op {
             "and" => Expr::And(vec![current, rhs]),
             "or" => Expr::Or(vec![current, rhs]),
-            _ => unreachable!(),
+            _ => {
+                return Err(AppError::InvalidCommand(format!(
+                    "unknown operator: {}",
+                    op
+                )));
+            }
         };
     }
 
@@ -641,14 +647,16 @@ fn parse_value(token: &str) -> Result<Value, AppError> {
 
 // use fill
 fn parse_use(tokens: Vec<String>) -> Result<Command, AppError> {
-    if tokens.len() != 2 {
-        return Err(AppError::InvalidCommand("invalid use".into()));
-    } else if tokens.len() == 2 {
-        let db = tokens[1].clone();
-        Ok(Command::UseDatabase { name: db })
-    } else {
-        let db = tokens[2].clone();
-        Ok(Command::UseDatabase { name: db })
+    match tokens.len() {
+        2 => Ok(Command::UseDatabase {
+            name: tokens[1].clone(),
+        }),
+        3 => Ok(Command::UseDatabase {
+            name: tokens[2].clone(),
+        }),
+        _ => Err(AppError::InvalidCommand(
+            "invalid use syntax. Usage: use <database>".into(),
+        )),
     }
 }
 

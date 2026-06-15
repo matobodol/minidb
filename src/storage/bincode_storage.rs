@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use crate::{
     domain::Database,
-    storage::{DatabaseStorage as Storage, StorageError},
+    storage::{DatabaseStorage as Storage, StorageError, default_root_path},
 };
 
 #[derive(Debug)]
@@ -22,12 +22,22 @@ impl BincodeStorage {
         }
     }
 
+    /// Create storage with default path (~/.minidb/storage)
+    pub fn with_default() -> Self {
+        let path = default_root_path();
+        Self::new(path)
+    }
+
     fn db_path(&self, name: &str) -> PathBuf {
         self.root.join(format!("{name}.bin"))
     }
 }
 
 impl Storage for BincodeStorage {
+    fn root_path(&self) -> &std::path::Path {
+        &self.root
+    }
+
     fn save(&mut self, name: &str) -> Result<(), StorageError> {
         let db = self.loaded.get(name).ok_or(StorageError::NotLoaded)?;
         let path = self.db_path(name);
@@ -75,12 +85,13 @@ impl Storage for BincodeStorage {
         }
 
         let path = self.db_path(name);
-
         let bytes = fs::read(&path)?;
-        let db: Database = bincode::deserialize(&bytes)?;
+        let mut db: Database = bincode::deserialize(&bytes)?;
+
+        // REBUILD INDEX AFTER DESERIALIZATION
+        db.rebuild_indices();
 
         self.loaded.insert(name.to_string(), db);
-
         Ok(())
     }
 

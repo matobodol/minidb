@@ -1,3 +1,4 @@
+// domain/row.rs
 use serde::{Deserialize, Serialize};
 
 use crate::domain::Value;
@@ -16,11 +17,15 @@ impl Row {
         self.values.push(value);
     }
 
+    pub(super) fn reserve(&mut self, additional: usize) {
+        self.values.reserve(additional);
+    }
+
     pub(super) fn remove_at(&mut self, index: usize) {
         self.values.remove(index);
     }
 
-    pub(super) fn values(&self) -> &Vec<Value> {
+    pub(super) fn values(&self) -> &[Value] {
         &self.values
     }
 }

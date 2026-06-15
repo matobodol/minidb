@@ -1,6 +1,7 @@
+// domain/column.rs
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{DataType, DomainError, Value};
+use crate::domain::{DataType, Value};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Constraint {
@@ -31,9 +32,11 @@ impl Column {
             constraint,
         }
     }
+
     pub(crate) fn name(&self) -> &str {
         &self.name
     }
+
     pub(crate) fn data_type(&self) -> &DataType {
         &self.data_type
     }
@@ -77,39 +80,6 @@ impl Column {
 
     pub(crate) fn is_increment(&self) -> bool {
         self.has_constraint(|c| matches!(c, Constraint::Increment))
-    }
-}
-impl Column {
-    pub(super) fn enforce<'a>(
-        &self,
-        input: Option<Value>,
-        mut existing_values: impl Iterator<Item = &'a Value>,
-    ) -> Result<Value, DomainError> {
-        let nullable = self.is_nullable();
-        let unique = self.is_unique();
-        let default = self.default_value();
-
-        let v = match input {
-            Some(v) => self.data_type.coerce_value(v)?,
-
-            None => {
-                if let Some(default) = default {
-                    self.data_type.coerce_value(default.clone())?
-                } else if !nullable {
-                    return Err(DomainError::NotAllowedNull);
-                } else {
-                    Value::Null
-                }
-            }
-        };
-
-        if unique && !matches!(v, Value::Null) {
-            if existing_values.any(|e| e == &v) {
-                return Err(DomainError::NotUniqValue(self.name.clone()));
-            }
-        }
-
-        Ok(v)
     }
 }
 

@@ -8,6 +8,15 @@ use crate::domain::{Column, Constraint, DataType, DomainError, Expr, Table, Valu
 pub struct Database {
     tables: HashMap<String, Table>,
 }
+// domain/api.rs - Tambahkan method untuk rebuild index setelah load
+impl Database {
+    // Call this after deserializing a Database
+    pub fn rebuild_indices(&mut self) {
+        for table in self.tables.values_mut() {
+            table.rebuild_index_after_load();
+        }
+    }
+}
 
 impl Database {
     pub fn new() -> Self {

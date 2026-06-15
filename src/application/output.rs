@@ -106,35 +106,45 @@ pub fn print_query_result(info: QueryInfo) {
         // =====================
         // DATABASE
         // =====================
-        QueryInfo::CreateDatabase { name, .. } => {
-            println!("Database '{name}' created");
+        QueryInfo::CreateDatabase { name, elapsed_ms } => {
+            println!("Database '{}' created{}", name, suffix_time(elapsed_ms));
         }
 
-        QueryInfo::DropDatabase { name, .. } => {
-            println!("Database '{name}' dropped");
+        QueryInfo::DropDatabase { name, elapsed_ms } => {
+            println!("Database '{}' dropped{}", name, suffix_time(elapsed_ms));
         }
 
-        QueryInfo::UseDatabase { name, .. } => {
-            println!("Using database '{name}'");
+        QueryInfo::UseDatabase { name, elapsed_ms } => {
+            println!("Using database '{}'{}", name, suffix_time(elapsed_ms));
         }
 
-        QueryInfo::ShowDatabases { count, .. } => {
-            println!("({} database{})", count, plural(count));
+        QueryInfo::ShowDatabases { count, elapsed_ms } => {
+            println!(
+                "({} database{}){}",
+                count,
+                plural(count),
+                suffix_time(elapsed_ms)
+            );
         }
 
         // =====================
         // TABLE
         // =====================
-        QueryInfo::CreateTable { name, .. } => {
-            println!("Table '{name}' created");
+        QueryInfo::CreateTable { name, elapsed_ms } => {
+            println!("Table '{}' created{}", name, suffix_time(elapsed_ms));
         }
 
-        QueryInfo::DropTable { name, .. } => {
-            println!("Table '{name}' dropped");
+        QueryInfo::DropTable { name, elapsed_ms } => {
+            println!("Table '{}' dropped{}", name, suffix_time(elapsed_ms));
         }
 
-        QueryInfo::ShowTables { count, .. } => {
-            println!("({} table{})", count, plural(count));
+        QueryInfo::ShowTables { count, elapsed_ms } => {
+            println!(
+                "({} table{}){}",
+                count,
+                plural(count),
+                suffix_time(elapsed_ms)
+            );
         }
 
         QueryInfo::Describe {
@@ -151,12 +161,28 @@ pub fn print_query_result(info: QueryInfo) {
         // =====================
         // ALTER
         // =====================
-        QueryInfo::AlterAddColumn { affected, .. } => {
-            println!("{} column{} added", affected, plural(affected));
+        QueryInfo::AlterAddColumn {
+            affected,
+            elapsed_ms,
+        } => {
+            println!(
+                "{} column{} added{}",
+                affected,
+                plural(affected),
+                suffix_time(elapsed_ms)
+            );
         }
 
-        QueryInfo::AlterDropColumn { affected, .. } => {
-            println!("{} column{} dropped", affected, plural(affected));
+        QueryInfo::AlterDropColumn {
+            affected,
+            elapsed_ms,
+        } => {
+            println!(
+                "{} column{} dropped{}",
+                affected,
+                plural(affected),
+                suffix_time(elapsed_ms)
+            );
         }
 
         // =====================

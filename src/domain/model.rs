@@ -1,4 +1,6 @@
+// domain/model.rs
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
 
@@ -87,6 +89,36 @@ impl DataType {
             (_, Value::Null) => Ok(Value::Null),
 
             _ => Err(DomainError::TypeMismatch),
+        }
+    }
+}
+
+// ADD Eq and Hash implementations
+impl Eq for Value {}
+
+impl Hash for Value {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Value::Int(v) => {
+                0.hash(state);
+                v.hash(state);
+            }
+            Value::Float(v) => {
+                1.hash(state);
+                // Use to_bits for consistent hashing of floats
+                v.to_bits().hash(state);
+            }
+            Value::Str(v) => {
+                2.hash(state);
+                v.hash(state);
+            }
+            Value::Enum { value } => {
+                3.hash(state);
+                value.hash(state);
+            }
+            Value::Null => {
+                4.hash(state);
+            }
         }
     }
 }

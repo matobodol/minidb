@@ -1,6 +1,7 @@
+// domain/filter.rs
 use crate::domain::Value;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)] // Tambahkan PartialEq dan Eq
 pub enum Expr {
     Compare(CompareExpr),
 
@@ -10,7 +11,7 @@ pub enum Expr {
     Not(Box<Expr>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)] // Tambahkan PartialEq dan Eq
 pub enum ResolvedExpr {
     Compare(ResolvedCompare),
 
@@ -20,7 +21,7 @@ pub enum ResolvedExpr {
     Not(Box<ResolvedExpr>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)] // Tambahkan PartialEq dan Eq
 pub enum CompareOp {
     Eq,
     Ne,
@@ -31,35 +32,37 @@ pub enum CompareOp {
 
     IsNull,
     IsNotNull,
-
-    In,
-    Like,
+    // In,
+    // Like,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)] // Tambahkan PartialEq dan Eq
 pub struct CompareExpr {
     pub column: String,
     pub op: CompareOp,
     pub value: Option<Value>,
 }
+
 impl CompareExpr {
     pub fn new(column: String, op: CompareOp, value: Option<Value>) -> Self {
         Self { column, op, value }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)] // Tambahkan PartialEq dan Eq
 pub struct ResolvedCompare {
     pub index: usize,
     pub op: CompareOp,
     pub value: Option<Value>,
 }
+
 impl ResolvedCompare {
     pub(super) fn new(index: usize, op: CompareOp, value: Option<Value>) -> Self {
         Self { index, op, value }
     }
 }
 
+// domain/filter.rs - update compare function to handle all variants
 pub(super) fn compare(left: &Value, op: &CompareOp, right: &Value) -> bool {
     use std::cmp::Ordering::*;
 
@@ -72,9 +75,11 @@ pub(super) fn compare(left: &Value, op: &CompareOp, right: &Value) -> bool {
         CompareOp::Lte => ord(left, right, |o| o != Greater),
         CompareOp::Gte => ord(left, right, |o| o != Less),
 
-        // CompareOp::IsNull => matches!(left, Value::Null),
-        // CompareOp::IsNotNull => !matches!(left, Value::Null),
-        _ => false,
+        CompareOp::IsNull | CompareOp::IsNotNull => {
+            // These should be handled before calling compare()
+            // They're included for completeness but shouldn't reach here
+            false
+        }
     }
 }
 
